@@ -1,0 +1,164 @@
+---
+title: "Bacterial DNA Concentration qPCR"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+```{r bac_setup, warning=FALSE, message=FALSE, echo = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(ProjectTemplate)
+load.project()
+library(modelr)
+library(broom)
+```
+
+```{r warning=FALSE, message=FALSE, echo = FALSE}
+mod <- qpcrBacStd %>%
+      filter(std == "shan", conc >= 0.2) %>% mutate(log_conc = log10(conc)) %>%
+      {lm(log_conc~Ct, data = .)}
+
+bac_abu <- qpcrBacAbu %>% filter(!is.na(Ct), std == "shan") %>%
+      add_predictions(mod) %>%
+      mutate(quant = 10^pred)
+
+#### Standard Curve Summary Metrics
+fit <- qpcrBacStd %>%
+      filter(std == "shan", conc >= 0.2) %>%
+      mutate(log_conc = log10(conc)) %>%
+      {lm(Ct~log_conc, data = .)}
+
+mod_summary <- summary(fit)
+std_r2 <- mod_summary$adj.r.squared
+std_slope <- mod_summary$coefficients[2,1]
+af <- 10^(-1/std_slope)
+efficiency <- (af - 1) * 100
+
+### DNA Concentration Plot data
+sample_name_df <- data_frame(bio_rep = as.character(1:5),
+                             biosample_id = paste0("E01JH00",c("04","11","16","17","38")))
+
+bac_con_plot <- bac_abu %>%
+      filter(sample_name != "NTC") %>%
+      ungroup() %>%
+      mutate(sample_name = gsub(" ","_", sample_name)) %>%
+      separate(sample_name, c("bio_rep","titration"), sep = "_") %>%
+      left_join(sample_name_df) %>%
+      mutate(titration = case_when(titration %in% paste0("M",c(0:20)) ~ str_replace(titration, "M",""),
+                                   titration == "Pre" ~ "20",
+                                   titration == "Post" ~ "0"),
+             titration = as.numeric(titration)) %>%
+      filter(titration != 0) %>%
+      mutate(t_group = if_else(titration <= 5, "low","high"))
+
+######### Model Fit data
+bac_con_fit <- bac_con_plot %>%
+      filter(titration != 20, stine_quant > 0.05) %>%
+      # group_by(biosample_id, t_group) %>% nest() %>%
+      group_by(biosample_id) %>% nest() %>%
+      mutate(fit = map(data, ~lm(quant~titration, data = .)),
+             fit_tdy = map(fit, tidy),
+             fit_glance = map(fit, glance))
+
+######### E01JH0017
+## Fit model to titration series with and without titration 5
+bac_con17_full <- bac_con_plot %>% filter(biosample_id == "E01JH0017")
+fit_17_full <- lm(quant~titration, data = bac_con17_full)
+slope_17_full <- coefficients(fit_17_full)[2]
+r2_17_full <- rsquare(fit_17_full, bac_con17_full)
+
+
+bac_con17_no5 <- bac_con_plot %>%
+      filter(biosample_id == "E01JH0017", titration != 5)
+fit_17_no5 <- lm(quant~titration, data = bac_con17_no5)
+slope_17_no5 <- coefficients(fit_17_no5)[2]
+r2_17_no5 <- rsquare(fit_17_no5, bac_con17_no5)
+# %>%
+#       group_by(biosample_id) %>% nest() %>%
+#       mutate(fit = map(data, ~lm(quant~titration, data = .)),
+#              fit_tdy = map(fit, tidy),
+#              fit_glance = map(fit, glance))
+
+############# Prokaryotic DNA concentration summary table
+bac_con_summary <- bac_con_plot %>%
+      filter(titration != 20, stine_quant > 0.05) %>%
+      group_by(biosample_id) %>%
+      summarise(median_quant = median(quant)) %>%
+      mutate(prok_prop = median_quant / 12.5)
+```
+
+
+```{r bacConFit, warning=FALSE, message=FALSE, echo = FALSE}
+# bac_con_r2 <- bac_con_fit %>% #filter(t_group == "low") %>%
+#       select(biosample_id, fit_glance) %>% unnest() %>%
+#       select(biosample_id, adj.r.squared)
+#
+# bac_con_fit %>%
+#       # select(biosample_id, t_group, fit_tdy) %>%
+#       #filter(t_group == "low") %>%
+#       select(biosample_id, fit_tdy) %>%
+#       unnest() %>% filter(term == "titration") %>%
+#       add_column(adj.p.value =  p.adjust(.$p.value, method = "BH")) %>%
+#       select(biosample_id, estimate, std.error, adj.p.value) %>%
+#       arrange(biosample_id) %>%
+#       left_join(bac_con_r2) %>%
+#       rename(`Std. Error` = std.error, `Adj. p-value` = adj.p.value,
+#              `Individual` = biosample_id,
+#              Slope = estimate,
+#              `$R^2$` = adj.r.squared) %>%
+#       knitr::kable(digits = 4, caption = "Slope estimates for the linear model of prokaryotic DNA concentration and titration factor. Separate linear models were fit for each titrations 1-4 for each  individual. Multiple test correction was performed using the Benjamini-Hochberg method. p-value indicates significant difference from the expected slopes of 0.",  booktabs = TRUE, escape = FALSE)
+```
+
+```{r bacPlot, fig.width = 6.68, fig.cap = "Prokaryotic DNA concentration (ng/ul) across titrations measured using a 16S rRNA qPCR assay. Separate linear models, Prokaryotic DNA concentration versus $\\theta$ were fit for each individual, and $R^2$ and p-values were reported. Red lines indicate negative slope estimates and blue lines positive slope estimates. p-value indicates significant difference from the expected slope of 0. The grey regions indicate the linear model 95\\% confidence interval. Multiple test correction was performed using the Benjamini-Hochberg method. One of the E01JH0004 PCR replicates for titration 3 ($\\theta=0.125$) was identified as an outlier, with a concentration of 0.003, and was excluded from the linear model. The linear model slope was still significantly different from 0 when the outlier was included.", warning=FALSE, message=FALSE, echo = FALSE}
+bac_con_theta_fit <- bac_con_plot %>%
+      mutate(theta = 2^-titration) %>%
+      filter(titration != 20, stine_quant > 0.05) %>%
+      # group_by(biosample_id, t_group) %>% nest() %>%
+      group_by(biosample_id) %>% nest() %>%
+      mutate(fit = map(data, ~lm(quant~theta, data = .)),
+             fit_tdy = map(fit, tidy),
+             fit_glance = map(fit, glance))
+
+bac_con_r2 <- bac_con_theta_fit %>% #filter(t_group == "low") %>%
+      dplyr::select(biosample_id, fit_glance) %>% unnest() %>%
+      dplyr::select(biosample_id, adj.r.squared)
+
+fit_stats <- bac_con_theta_fit %>%
+      # select(biosample_id, t_group, fit_tdy) %>%
+      #filter(t_group == "low") %>%
+      dplyr::select(biosample_id, fit_tdy) %>%
+      unnest() %>% filter(term == "theta") %>%
+      add_column(adj.p.value =  p.adjust(.$p.value, method = "BH")) %>%
+      dplyr::select(biosample_id, estimate, std.error, adj.p.value) %>%
+      left_join(bac_con_r2) %>%
+      mutate(pval = if_else(adj.p.value < 0.001, "p < 0.001", paste("p =", round(adj.p.value,3))))
+
+bac_con_plot_dat <- bac_con_plot %>%
+      filter(titration != 20, stine_quant > 0.05) %>%
+      left_join(fit_stats) %>%
+      mutate(theta = 2^-titration, slope = if_else(estimate > 0, "pos","neg"))
+
+bac_con_plot_dat %>%
+      ggplot() +
+      geom_point(aes(y = quant, x = theta)) +
+      geom_smooth(aes(x = theta, y = quant, color = slope), method = "lm") +
+      geom_text(aes(x = 0.1, y = 7.5, label = pval), hjust = 0) +
+      geom_text(aes(x = 0.1, y = 7,
+                    label = paste0("R^2 == ", signif(adj.r.squared,2))),
+                hjust = 0, parse = TRUE) +
+      facet_grid(~biosample_id, scales = "free") +
+      theme_bw() + labs(x = "Proportion POST DNA", y = "DNA concentration (ng/ul)") +
+      theme(legend.position = "none")
+#ggsave("~/Projects/MGTST-Manuscript/bacPlot-1.pdf", width = 170, height = 100, units = "mm")
+```
+
+
+Observed changes in prokaryotic DNA concentration across titrations indicate the proportion of prokaryotic DNA from the unmixed PRE and POST samples in a titration is inconsistent with the mixture design (Fig. \@ref(fig:bacPlot)).
+A qPCR assay targeting the 16S rRNA gene was used to quantify the concentration of prokaryotic DNA in the titrations.
+An in-house standard curve with concentrations of 20 ng/ul, 2ng/ul, and 0.2 ng/ul was used, with efficiency `r round(efficiency,2)`, and $R^2$ `r round(std_r2,3)`.
+If the proportion of prokaryotic DNA is the same between PRE and POST samples the slope of the concentration estimates across the two-sample titration would be 0.
+For subjects where the proportion of prokaryotic DNA is higher in the PRE samples, the slope will be negative, and positive when the proportion is higher for POST samples.
+The slope estimates are significantly different from 0 for all subjects excluding E01JH0011 (Fig. \@ref(fig:bacPlot)).
+These results indicate that the proportion of prokaryotic DNA is lower in POST when compared to the PRE samples for E01JH0004 and E01JH0017 and higher for E01JH0016 and E01JH0038.

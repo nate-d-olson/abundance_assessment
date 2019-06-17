@@ -1,0 +1,321 @@
+---
+title: "Microbiome Scale Qualitative Assessment Results"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+
+```{r qualSetup, include=FALSE}
+library(tidyverse)
+library(broom)
+library(ggpubr)
+raw_counts <- readRDS("data/raw_counts.RDS")
+nb_counts <- readRDS("data/nb_counts_titrations.RDS")
+pa_summary_anno_df <- readRDS("data/pa_summary_anno_df.RDS")
+theta_est <- readRDS("data/bootstrap_theta_estimates.rds")
+mix_binom_tidy <- readRDS("data/mix_bayes_test.RDS")
+unmix_binom_tidy <- readRDS("data/unmix_binom_test.RDS")
+```
+
+```{r qualMunge, message = FALSE, echo = FALSE, warning = FALSE}
+## Feature-PCR rep level tidy data frame
+## Relevant raw_count factors
+count_df <- raw_counts %>%
+      dplyr::select(biosample_id, t_fctr, id, pipe, feature_id, count)
+
+count_df <- count_df %>%
+      group_by(id) %>%
+      mutate(total_count = sum(count))
+
+## Sanity Check
+# count_df$total_count %>% unique() %>% summary()
+
+## Annotating with feature type
+count_df <- pa_summary_anno_df %>%
+      dplyr::select(biosample_id, pipe, feature_id, pa_specific) %>%
+      left_join(count_df)
+
+## Inferred Feature Proportions
+### Same code used in Rel_Abu_Error
+pre_post_prop <- nb_counts %>%
+      ungroup() %>%
+      filter(t_fctr %in% c(0,20)) %>%
+      mutate(end_point = if_else(t_fctr == 0 , "post", "pre")) %>%
+      dplyr::select(-t_fctr) %>%
+      ## setting values to 0 when one or more of the PCR replicates are 0 for titration end-points
+      spread(end_point,nb_prop, fill = 0)
+
+prop_inferred <- theta_est %>%
+      # filter(pipe == "unclustered") %>%
+      ## Using mothur until we have unclustered theta estimates
+      filter(pipe == "mothur") %>%
+      ungroup() %>%
+      mutate(t_fctr = factor(t_fctr, levels = c(0:5, 10, 15, 20))) %>%
+      dplyr::select(biosample_id, theta_hat_mean, t_fctr) %>%
+      right_join(nb_counts) %>% right_join(pre_post_prop) %>%
+      filter(t_fctr %in% c(1:5,10,15)) %>%
+      ## Setting negative inferrred theta values to 0
+      mutate(theta_hat_mean = if_else(theta_hat_mean < 0, 0, theta_hat_mean)) %>%
+      ## Using inferred theta estimates to calculate expected values
+      mutate(inferred_prop = post * theta_hat_mean + pre * (1 - theta_hat_mean))
+
+count_df <- prop_inferred %>%
+      dplyr::select(biosample_id, t_fctr, pipe, feature_id,
+             pre, post, inferred_prop, theta_hat_mean) %>%
+      left_join(count_df)
+
+unmix_count_df <- filter(count_df,
+                    t_fctr %in% c(1:5, 10, 15),
+                    pa_specific == "unmixed",
+                    # should not have to filter by inferred_prop unmix should
+                    # have non-zero inferred prop or at least non-zero pre +
+                    # post
+                    pre + post != 0, count == 0)
+
+mix_count_df <- filter(count_df,
+                  t_fctr %in% c(1:5, 10, 15),
+                  count != 0, pre == 0, post == 0)
+
+## Multipannel plots
+unmix_plot_df <- unmix_count_df %>%
+      # filter(pipe == "unclustered") %>%
+      ## Using mothur until we have unclustered theta estimates
+      filter(pipe == "mothur") %>%
+      mutate(exp_count = inferred_prop * total_count) %>%
+      ungroup() %>%
+      mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2", Mothur = "mothur", QIIME = "qiime"))
+
+unmix_count_plot <- ggplot(unmix_plot_df) +
+      geom_boxplot(aes(x = biosample_id, y = exp_count + 1),
+                   alpha = 0.25) +
+      geom_hline(aes(yintercept = 1), linetype = 2, color = "darkorange") +
+      scale_y_log10(breaks = c(1,10,100,1000)) +
+      theme_bw() +
+      labs(x = "Individual", y = "US Exp. Counts") +
+      theme(legend.position = "bottom", axis.text.x = element_text(angle = -45, hjust = 0),
+            plot.background = element_rect(fill = "transparent",colour = NA)) +
+      facet_wrap(~pipe, nrow = 1)
+
+## Only including p < 0.05
+unmix_binom_prop <- unmix_binom_tidy %>%
+      filter(pipe != "unclustered") %>%
+      mutate(pval_cat = if_else(adj.pvalue < 0.05, "p < 0.05", "p >= 0.05")) %>%
+      group_by(pipe, biosample_id) %>%
+      mutate(count = n()) %>%
+      group_by(pipe, biosample_id, count, pval_cat) %>%
+      summarise(cat_count = n()) %>%
+      mutate(pval_prop = cat_count/count) %>%
+      filter(pval_cat == "p < 0.05")
+
+unmix_test_plot <- unmix_binom_prop %>%
+      ungroup() %>%
+      mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2", Mothur = "mothur", QIIME = "qiime")) %>%
+      ggplot() +
+      geom_bar(aes(x = biosample_id, y = pval_prop), stat = "identity") +
+      facet_wrap(~pipe, nrow = 1) +
+      theme_bw() + theme(axis.text.x = element_text(angle = -45, hjust = 0),
+                         plot.background = element_rect(fill = "transparent",colour = NA)) +
+      labs(x = "Individual", y = "US Art. Feat. Prop.") +
+      ylim(0, 1)
+
+mix_count_plot <- mix_count_df %>% filter(pipe != "unclustered") %>%
+      ungroup() %>%
+      mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2", Mothur = "mothur", QIIME = "qiime")) %>%
+      ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = count),
+                   alpha = 0.25) +
+      geom_hline(aes(yintercept = 1), linetype = 2, color = "darkorange") +
+      scale_y_log10(breaks = c(1,10,100,1000)) +
+      theme_bw() +
+      labs(x = "Individual", y = "TS Obs. Counts") +
+      theme(legend.position = "bottom",
+            axis.text.x = element_text(angle = -45, hjust = 0),
+            plot.background = element_rect(fill = "transparent",colour = NA)) +
+      facet_wrap(~pipe, nrow = 1)
+
+## Only including p < 0.05
+mix_binom_prop <- mix_binom_tidy %>%
+      filter(pipe != "unclustered") %>%
+      mutate(pval_cat = if_else(adj.pvalue < 0.05, "p < 0.05", "p >= 0.05")) %>%
+      group_by(pipe, biosample_id) %>%
+      mutate(count = n()) %>%
+      group_by(pipe, biosample_id, count, pval_cat) %>%
+      summarise(cat_count = n()) %>%
+      mutate(pval_prop = cat_count/count) %>%
+      filter(pval_cat == "p < 0.05")
+
+mix_test_plot <- mix_binom_prop %>%
+      ungroup() %>%
+      mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2", Mothur = "mothur", QIIME = "qiime")) %>%
+      ggplot() +
+      geom_bar(aes(x = biosample_id, y = pval_prop), stat = "identity") +
+      facet_wrap(~pipe, nrow = 1) +
+      theme_bw() + theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+      labs(x = "Individual", y = "TS Art. Feat. Prop.") +
+      ylim(0, 1)
+```
+
+```{r qualPlot, message = FALSE, echo = FALSE, warning = FALSE, fig.width = 6.68, fig.cap = "Distribution of (A) observed count values for titration-specific features and (B) expected count values for unmixed-specific features by pipeline and individual. The orange horizontal dashed line indicates a count value of 1. (C) Proportion of unmix-specific features and (D) titration-specific features with an adjusted p-value < 0.05 for the Bayesian hypothesis test and binomial test respectively. We failed to accept the null hypothesis when the p-value < 0.05, indicating that the discrepancy between the feature only being observed in the titrations or unmixed samples cannot be explained by sampling alone."}
+ggarrange(mix_count_plot + rremove("x.text"), unmix_count_plot + rremove("x.text"),
+          mix_test_plot, unmix_test_plot,
+          labels = "AUTO",
+          ncol = 2, nrow = 2, heights = c(4, 5))
+```
+
+```{r}
+ggsave("~/Projects/MGTST-Manuscript/qualPlot-1.pdf", width = 170, units = "mm")
+```
+
+Unmixed- and titration-specific features were observed for all pipelines (titration-specific: Fig. \@ref(fig:qualPlot)A, unmixed-specific: Fig. \@ref(fig:qualPlot)B).
+For mixture datasets low abundance features present only in unmixed samples and mixtures are expected due to random sampling.
+For our two-sample titration dataset there were unmixed-specific features with expected counts not explained by sampling alone for all individuals and bioinformatic pipelines (Fig. \@ref(fig:qualPlot)C).
+However, the proportion of unmixed-specific features that could not be explained by sampling alone varied by bioinformatic pipeline.
+DADA2 had the highest proportion of unmixed-specific features not explained by sampling whereas QIIME had the lowest proportion.
+Consistent with the distribution of observed counts for titration-specific features more of the DADA2 features could not be explained by sampling alone compared to the other pipelines (Fig. \@ref(fig:qualPlot)D). 
+Overall, the DADA2 count table had the largest number of observed features inconsistent with the titration experiment design, while the same phenomenon is significantly reduced in the other pipelines.
+
+
+<!-- Exploring unmix and titration specific feature numbers -->
+```{r echo = FALSE, eval = FALSE}
+## Number of unmix specific features by pipeline and subject
+unmix_binom_prop %>%
+      group_by(pipe, biosample_id) %>%
+      select(-pval_prop, -cat_count, -pval_cat) %>%
+      spread(pipe, count)
+```
+
+```{r echo = FALSE, eval = FALSE}
+## Number of unmix specific features with abundances not explained by random sampling alone by pipeline and subject
+unmix_binom_prop %>%
+      group_by(pipe, biosample_id) %>%
+      select(-pval_prop, -count, -pval_cat) %>%
+      spread(pipe, cat_count)
+```
+
+
+
+```{r echo = FALSE, eval = FALSE}
+## Number of titration specific features per pipeline is consistent with the total number of features per pipeline.
+## Most titration specific features only observed in one titration, though a significant proportion of titration specific features are observed in two or more titations.
+mix_count_df %>% filter(pipe != "unclustered") %>%
+      select(pipe, feature_id, biosample_id, t_fctr) %>%
+      distinct() %>%
+      group_by(pipe, biosample_id, feature_id) %>%
+      summarise(count = n()) %>%
+      ggplot() + geom_bar(aes(x = biosample_id, fill = as.character(count)), position = "fill") +
+      facet_grid(.~pipe) +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+      labs(x = "Subject", y = "Proportion", fill = "# of Titrations")  +
+      scale_fill_brewer(type = "qual",palette = 2)
+```
+
+```{r echo = FALSE, eval = FALSE}
+## Number of titration specific features per pipeline is consistent with the total number of features per pipeline.
+## Most titration specific features only observed in one titration, though a significant proportion of titration specific features are observed in two or more titations.
+mix_count_df %>% filter(pipe != "unclustered") %>%
+      select(pipe, feature_id, biosample_id, t_fctr) %>%
+      distinct() %>%
+      group_by(pipe, biosample_id, feature_id) %>%
+      summarise(count = n()) %>%
+      ggplot() + geom_bar(aes(x = biosample_id, fill = as.factor(count)),
+                          position = "dodge") +
+      facet_grid(.~pipe) +
+      scale_y_log10() +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+      labs(x = "Subject", y = "Proportion", fill = "# of Titrations") +
+      annotation_logticks(sides = "l", size = 0.25) +
+      scale_fill_brewer(type = "qual",palette = 2)
+```
+
+```{r echo = FALSE, eval = FALSE}
+mix_binom_prop %>%
+      group_by(pipe, biosample_id) %>%
+      select(-pval_prop, -count, -pval_cat) %>%
+      spread(pipe, cat_count)
+```
+
+```{r echo = FALSE, eval = FALSE}
+## Number of
+mix_binom_prop %>%
+      group_by(pipe, biosample_id) %>%
+      select(-pval_prop, -cat_count, -pval_cat) %>%
+      spread(pipe, count)
+```
+
+```{r echo = FALSE, eval = FALSE}
+mix_binom_tidy %>%
+      filter(pipe != "unclustered") %>%
+      mutate(pval_cat = if_else(adj.pvalue < 0.05, "p < 0.05", "p >= 0.05")) %>%
+      group_by(pipe, biosample_id, t_fctr) %>%
+      mutate(count = n()) %>%
+      group_by(pipe, biosample_id, count, pval_cat, t_fctr) %>%
+      summarise(cat_count = n()) %>%
+      mutate(pval_prop = cat_count/count) %>%
+      filter(pval_cat == "p < 0.05") %>%
+      mutate(titration_factor = as.numeric(as.character(t_fctr))) %>%
+      ggplot() + geom_line(aes(x = titration_factor, y = pval_prop, color = biosample_id)) + facet_wrap(~pipe, scales = "free")
+```
+
+```{r echo = FALSE, eval = FALSE}
+## Want to know if mix specific features observed in multiple titrations are significant for multiple features...
+mix_binom_tidy %>%
+      filter(pipe != "unclustered") %>%
+      mutate(pval_cat = if_else(adj.pvalue < 0.05, "p < 0.05", "p >= 0.05"))
+```
+
+```{r presFig, echo = FALSE, eval = FALSE}
+ggarrange(mix_count_plot, mix_test_plot, ncol = 2, nrow = 1)
+
+tmp_img <- tempfile(fileext = ".png")
+ggsave(filename = tmp_img, device = "png",width = 8, height = 4)
+img_filename <- "abu_qual_plot.png"
+## Add if statement to upload image for first time then update if already present
+googledrive::drive_upload(media = tmp_img, type = "png",
+             path =  "defense_presentation",
+             name = img_filename)
+# googledrive::drive_update(paste0("defense_presentation/", img_filename), tmp_img)
+```
+
+```{r presMethodFig, echo = FALSE, eval = FALSE}
+dada_mix_count_plot <- mix_count_df %>% filter(pipe == "dada2") %>%
+      ungroup() %>%
+      mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2")) %>%
+      ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = count),
+                   alpha = 0.25) +
+      geom_hline(aes(yintercept = 1), linetype = 2, color = "darkorange") +
+      scale_y_log10(breaks = c(1,10,100,1000)) +
+      theme_bw() +
+      labs(x = "Subject", y = "Observed Counts") +
+      theme(legend.position = "bottom",
+            axis.text.x = element_text(angle = -45, hjust = 0),
+            plot.background = element_rect(fill = "transparent",colour = NA)) +
+      facet_wrap(~pipe, nrow = 1)
+
+dada_mix_test_plot <- mix_binom_prop %>%
+      filter(pipe == "mothur") %>%
+      ungroup() %>%
+      mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2")) %>%
+      ggplot() +
+      geom_bar(aes(x = biosample_id, y = pval_prop), stat = "identity") +
+      facet_wrap(~pipe, nrow = 1) +
+      theme_bw() + theme(axis.text.x = element_text(angle = -45, hjust = 0),
+                         plot.background = element_rect(fill = "transparent",colour = NA)) +
+      labs(x = "Subject", y = "Proportion") +
+      ylim(0, 1)
+
+ggarrange(dada_mix_count_plot, dada_mix_test_plot, ncol = 2, nrow = 1)
+
+tmp_img <- tempfile(fileext = ".png")
+ggsave(filename = tmp_img, device = "png",width = 8, height = 4)
+img_filename <- "abu_qual_method_plot.png"
+## Add if statement to upload image for first time then update if already present
+googledrive::drive_upload(media = tmp_img, type = "png",
+             path =  "defense_presentation",
+             name = img_filename)
+```

@@ -1,0 +1,170 @@
+---
+title: "Supplemental"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+      pdf_document:
+            toc: FALSE
+---
+```{r suppSetUp, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggridges)
+library(ggpubr)
+```
+
+
+# Theta Inferrence
+```{r loadTheta}
+## Data frame saved by theta_estimate_results.Rmd
+theta_est_df <- readRDS("results/data/theta_est_df.RDS")
+```
+
+
+```{r thetaFeatTbl}
+theta_est_df %>% ungroup() %>%
+     dplyr::select(pipe, biosample_id, feature_id) %>%
+      unique() %>%
+      group_by(pipe, biosample_id) %>%
+      summarise(count = n()) %>%
+      spread(biosample_id, count) %>%
+      knitr::kable(booktab = TRUE,
+                   caption = "Number of features used to estimate theta by biological replicate and pipeline.")
+```
+
+\newpage
+# Relative Abundance
+```{r loadRelAbu}
+prop_inferred <- readRDS("results/data/prop_inferred.RDS")
+```
+
+```{r relAbuFeatTbl}
+prop_inferred %>%
+      dplyr::select(pipe, biosample_id, feature_id) %>% distinct() %>%
+      group_by(pipe, biosample_id) %>%
+      summarise(count = n()) %>%
+      spread(biosample_id, count) %>%
+      knitr::kable(booktabs = TRUE, caption = "Number of features by pipeline and individual used in the relative abundance error rate analysis.")
+```
+
+\newpage
+```{r relAbuScatter, fig.cap = "Relationship between expected and observed relative abundance. Dark orange line indicates the expected 1-to-1 relationship."}
+prop_inferred %>%
+      ggplot() +
+      geom_point(aes(x = inferred_prop, y = nb_prop), alpha = 0.25) +
+      geom_abline(aes(intercept = 0, slope = 1), color = "darkorange") +
+      facet_grid(pipe~biosample_id) +
+      scale_y_log10() + scale_x_log10() +
+      theme_bw() +
+      labs(x = "Expected",
+           y = "Observed",
+           color = "Pipeline")
+```
+
+
+<!-- ## Feature Characterization -->
+
+\newpage
+# log Fold-Change
+
+```{r loadLogFC, include = FALSE}
+logFC_pre <- readRDS("data/logFC_pre.RDS")
+```
+
+```{r logFcCountTbl, echo = FALSE}
+logFC_pre %>% filter(T1 == 0, T2 == 20) %>%
+      mutate(Type = if_else(T00 == 0, "specific", "dominant")) %>%
+      group_by(pipe, biosample_id, Type) %>%
+      summarise(count = n()) %>%
+      spread(pipe, count,fill = 0) %>%
+      dplyr::rename(Individual = biosample_id) %>%
+      knitr::kable(caption = "Number of PRE-specific and PRE-dominant features by individual and pipeline", booktabs = TRUE)
+```
+
+\newpage
+```{r logFCestVexp, fig.cap = "Relationship between log fold-change estimates and expected values. Orange line represents the expected 1-to-1 relationshion."}
+logFC_pre %>%
+      filter(T1 != 0, T2 != 20) %>%
+      ggplot() +
+      geom_point(aes(x = exp_logFC, y = logFC), alpha = 0.15) +
+      geom_abline(aes(intercept = 0, slope = 1), color = "darkorange") +
+      facet_grid(pipe~biosample_id, scales = "free_y") + theme_bw()  +
+      labs(x = "Expected", y = "Estimate")
+```
+
+```{r supLogFCmunge, include = FALSE}
+### Loading Data ---------------------------------------------------------------
+### RDS file generated in 2017-10-19_logFC-error-metrics.RDS
+logFC_pre <- readRDS("data/norm_logFC_pre.RDS")
+
+logFC_pre$norm_method <- logFC_pre$norm
+logFC_pre$norm <- NULL
+
+logFC_feature_summary <- readRDS("data/norm_logFC_feature_summary.RDS") %>%
+      mutate(slope_error = 1 - slope)
+
+logFC_feature_summary$norm_method <- logFC_pre$norm
+logFC_feature_summary$norm <- NULL
+
+## Calculating error rate
+logFC_error <- logFC_pre %>%
+      filter(T1 != 0, T2 != 20) %>%
+      mutate(abs_error = abs(logFC - exp_logFC),
+             error = logFC - exp_logFC)
+```
+
+```{r logFcNormCountTbl, echo = FALSE}
+logFC_pre %>%
+      filter(T1 == 0, T2 == 20) %>%
+      mutate(Type = if_else(T00 == 0, "specific", "dominant")) %>%
+      group_by(norm_method, biosample_id, Type) %>%
+      summarise(count = n()) %>%
+      spread(norm_method, count, fill = 0) %>%
+      dplyr::rename(Individual = biosample_id) %>%
+      knitr::kable(caption = "Number of PRE-specific and PRE-dominant features by individual and normalization method for Mothur", booktabs = TRUE)
+```
+
+```{r logfcNormComp, fig.cap = "Impact of normalization methods on the agreement between log fold-change estimates and expected values for PRE-specific and PRE-dominant features. (A) Linear model relating the log fold-change estimates with the expected values by individual and normalization method. (B) Distribution of log fold-change (B) absolute error and (C) error by normalization method and individual.", echo=FALSE, message = FALSE, fig.height = 8}
+logFCestVexp <- logFC_error %>%
+      filter(T1 != 0, T2 != 20) %>%
+      ggplot() +
+      geom_smooth(aes(x = exp_logFC, y = logFC, color = norm_method), method = "lm") +
+      geom_abline(aes(intercept = 0, slope = 1), color = "grey20", linetype = 2) +
+      facet_wrap(~biosample_id, ncol = 1, scales = "free_y") + theme_bw()  +
+      labs(x = "Expected", y = "Estimate", color = "Normalization")
+
+logFC_abs_error_dist <- logFC_error %>%
+      group_by(biosample_id, norm_method) %>%
+      mutate(med_error = median(abs_error)) %>%
+      ggplot() +
+      geom_density_ridges(aes(x = abs_error, y = norm_method, color = norm_method),
+                          alpha = 0.5, stat = "binline", bins = 30, draw_baseline = FALSE)  +
+      geom_text(aes( x = -1, y = norm_method, label = round(med_error,2))) +
+      facet_wrap(~biosample_id, ncol = 1) + theme_bw() +
+      labs(x = "|Error|", y = "Normalization", color = "Normalization") +
+      theme(legend.position = "none")
+
+logFC_error_dist <- logFC_error %>%
+      group_by(biosample_id, norm_method) %>%
+      mutate(med_error = median(error)) %>%
+      ggplot() +
+      geom_density_ridges(aes(x = error, y = norm_method, color = norm_method),
+                          alpha = 0.5, stat = "binline", bins = 30, draw_baseline = FALSE)  +
+      geom_text(aes( x = -10, y = norm_method, label = round(med_error,2))) +
+      facet_wrap(~biosample_id, ncol = 1) + theme_bw() +
+      labs(x = "Error", y = "Normalization", color = "Normalization") +
+      theme(legend.position = "none")
+
+ggarrange(logFCestVexp,
+          logFC_error_dist,
+          logFC_abs_error_dist,
+          labels = "AUTO",
+          align = "v",
+          ncol = 3, nrow = 1,
+          common.legend = TRUE,
+          legend = "bottom")
+```
+
+<!-- ## Estimator Comparison -->
+
+<!-- ## Feature Characterization -->

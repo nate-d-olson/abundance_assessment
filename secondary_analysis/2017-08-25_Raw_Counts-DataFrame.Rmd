@@ -1,0 +1,59 @@
+---
+title: "Raw Counts Data Frame"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+always_allow_html: yes
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r message = FALSE}
+library(metagenomeSeq)
+library(tidyverse)
+get_mrexp <- function() {
+  mrexp_list <- list(
+    dada2 =  "data/dada2_mrexp.rds",
+    mothur = "data/mothur_mrexp.rds",
+    qiime =  "data/qiime_mrexp.rds",
+    unclustered =  "data/unclustered_mrexp.rds"
+  )  %>%
+    map(readRDS)
+}
+mrexp <- get_mrexp()
+```
+
+## Objective 
+Generate a tidy dataframe with count data.
+
+
+```{r}
+get_count_df <- function(mrobj, agg_genus = FALSE, css = TRUE){
+      if(agg_genus){
+            mrobj <- aggregateByTaxonomy(mrobj, lvl = "Rank6", 
+                                         norm = FALSE, log = FALSE, sl = 1)
+      }
+      
+      if(css == TRUE){
+            mrobj <- cumNorm(mrobj, p = 0.75)
+            count_mat <- MRcounts(mrobj, norm = TRUE, log = FALSE, sl = 1000)
+      }else{
+            count_mat <- MRcounts(mrobj, norm = FALSE, log = FALSE, sl = 1)
+      }
+       count_mat %>%  
+            as.data.frame() %>% 
+            rownames_to_column(var = "feature_id") %>% 
+            gather("id","count", -feature_id)
+}
+
+## Converting count matrix to data frame
+counts_df <- mrexp %>% 
+      map_df(get_count_df, css = FALSE, .id = "pipe") %>% 
+      ## Adding sample metadata
+      left_join(pData(mrexp$dada2)) 
+```
+
+```{r}
+saveRDS(counts_df, "data/raw_counts.RDS")
+```
+

@@ -1,0 +1,232 @@
+---
+title: "Negative Binomial Linear Model Count Estimates"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+always_allow_html: yes
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup}
+library(MASS)
+library(tidyverse)
+library(modelr)
+library(furrr)
+plan(multiprocess)
+count_df <- readRDS("data/raw_counts.RDS")
+
+## Cleaning up data frame and calculating total abundance
+count_df <- count_df %>% 
+      filter(biosample_id != "NTC") %>% 
+      dplyr::select(pipe, biosample_id, id, pcr_rep, feature_id, t_fctr, count) %>% 
+      group_by(biosample_id, pipe, id) %>%
+      mutate(total_abu = sum(count))
+```
+
+## Summary
+Using a negative binomial generalized linear model to calculate feature proportion estimates across the four PCR replicates accounting for differences in sampling depth.
+
+```{r nbModelFit}
+calc_nb_prop <- function(count_df, fit_file, prop_file, fit_level = "feature"){
+      if(file.exists(prop_file)){
+            return(readRDS(prop_file))
+      }
+      
+      ## Excluding features with no observed counts for an individual 
+      nonzero_count_features <- count_df %>% 
+            mutate(t_fctr = factor(t_fctr, levels = c(0:5,10,15,20))) %>% 
+            group_by(pipe, biosample_id, feature_id) %>% 
+            summarise(total_count = sum(count)) %>% 
+            filter(total_count > 0) %>% 
+            dplyr::select(-total_count)
+      
+      ## Excluding titrations with zero counts for all four PCR replicates
+      titration_counts <- count_df %>% 
+            right_join(nonzero_count_features) %>% 
+            mutate(t_fctr = factor(t_fctr, levels = c(0:5,10,15,20))) %>% 
+            group_by(pipe, biosample_id, feature_id, t_fctr) %>% 
+            summarise(total_count = sum(count)) 
+      
+      zero_titrations <- titration_counts %>%
+            filter(total_count == 0) %>% 
+            dplyr::select(-total_count) 
+      
+      nonzero_titrations <- titration_counts %>% 
+            filter(total_count > 0) %>% 
+            dplyr::select(-total_count)
+      
+      ## Fit model at either feature level or titration level
+      if(fit_level == "feature"){
+            if(file.exists(fit_file)){
+                  nb_fit <- readRDS(fit_file)
+            }else{
+                  
+                  
+                  ### Filtering nonzero features and modifying data frame to fit model      
+                  nested_count_df <- count_df %>% 
+                        mutate(t_fctr = factor(t_fctr, levels = c(0:5,10,15,20))) %>% 
+                        right_join(nonzero_count_features) %>% 
+                        right_join(nonzero_titrations) %>% 
+                        group_by(pipe, biosample_id, feature_id) %>%
+                        nest()
+                  
+                  ## Using safely to fit negative binomial to catch model fit errors
+                  safe_glm.nb <- safely(glm.nb)
+                  
+                  nb_fit <- nested_count_df %>%
+                        mutate(fit = map(data, 
+                                         ~safe_glm.nb(count ~ t_fctr + offset(log(total_abu)), 
+                                                      data = ., 
+                                                      link = "log"))) 
+                  
+                  saveRDS(nb_fit, fit_file)
+            }
+            
+            ### Filtering failed models
+            fit_results <- nb_fit$fit %>% 
+                  transpose() %>% 
+                  as_data_frame()
+            
+            nb_fit_results <- nb_fit %>% 
+                  dplyr::select(-fit) %>%
+                  bind_cols(fit_results) %>% 
+                  mutate(ok_model = map_lgl(error, is_null))  
+            
+            ## Extracting proportion estimates Using add_predictions to get
+            ## proportions estimates. Removes need to account for differences in
+            ## intercept when some or all of the titrations are excluded from the model
+            ## fit due to no observed counts.
+            nb_counts <- nb_fit_results %>% 
+                  mutate(data = map(data, mutate, `offset(log(total_abu)))` = offset(log(total_abu)))) %>% 
+                  mutate(data = map2(data, result, add_predictions)) %>%
+                  dplyr::select(-result, -error, -ok_model) %>%
+                  unnest() %>% 
+                  mutate(nb_prop = exp(pred)/total_abu) %>% 
+                  ## Proportion estimates for each PCR replicate - using mean as values are not unique
+                  group_by(pipe, biosample_id, feature_id, t_fctr) %>% 
+                  summarise(nb_prop = mean(nb_prop))
+            
+            
+            ## set zero titrations to zero
+            zero_titrations <- zero_titrations %>% mutate(nb_prop = 0)
+            nb_counts <- nb_counts %>% full_join(zero_titrations)  
+            
+      }else if(fit_level == "titration"){
+            if(file.exists(fit_file)){
+                  nb_fit <- readRDS(fit_file)
+            }else{
+                  
+                  ## Preparing data frame to fit negative binomial model to each
+                  ## titration individually, essentially using the negative binomial
+                  ## to calculate the average feature propportion across the PCR
+                  ## replicates only considering one titration for a feature at a
+                  ## time.
+                  ### Filtering nonzero features and modifying data frame to fit model      
+                  nested_count_df <- count_df %>% 
+                        mutate(t_fctr = factor(t_fctr, levels = c(0:5,10,15,20))) %>% 
+                        right_join(nonzero_count_features) %>% 
+                        right_join(nonzero_titrations) %>% 
+                        group_by(pipe, biosample_id, feature_id, t_fctr) %>% 
+                        nest()
+                  
+                  ## Using safely to fit negative binomial to catch model fit errors
+                  safe_glm.nb <- safely(glm.nb)
+                  
+                  nb_fit <- nested_count_df %>%
+                        mutate(fit = future_map(data, 
+                                         ~safe_glm.nb(count ~ offset(log(total_abu)), 
+                                                      data = ., 
+                                                      link = "log"))) 
+                  
+                  saveRDS(nb_fit, fit_file)
+            }
+            
+            ### Filtering failed models
+            fit_results <- nb_fit$fit %>% 
+                  transpose() %>% 
+                  as_data_frame()
+            
+            nb_fit_results <- nb_fit %>% 
+                  dplyr::select(-fit) %>%
+                  bind_cols(fit_results) %>% 
+                  mutate(ok_model = map_lgl(error, is_null))  
+            
+            ## Extracting proportion estimates Using add_predictions to get
+            ## proportions estimates. Removes need to account for differences in
+            ## intercept when some or all of the titrations are excluded from the model
+            ## fit due to no observed counts.
+            nb_counts <- nb_fit_results %>% 
+                  filter(ok_model == TRUE) %>% 
+                  mutate(data = future_map(data, mutate, `offset(log(total_abu)))` = offset(log(total_abu)))) %>% 
+                  mutate(data = future_map2(data, result, add_predictions)) %>%
+                  dplyr::select(-result, -error, -ok_model) %>%
+                  unnest() %>% 
+                  mutate(nb_prop = exp(pred)/total_abu) %>% 
+                  ## Proportion estimates for each PCR replicate - using mean as values are not unique
+                  group_by(pipe, biosample_id, feature_id, t_fctr) %>% 
+                  summarise(nb_prop = mean(nb_prop))
+            
+            
+            ## set zero titrations to zero
+            zero_titrations <- zero_titrations %>% mutate(nb_prop = 0)
+            nb_counts <- nb_counts %>% full_join(zero_titrations)            
+            
+            
+      }else{
+            warning("fit_level not titration or feature, nb_prop not calculated")
+            return()
+      }
+      
+      saveRDS(nb_counts, prop_file)
+      
+      return(nb_counts)
+}
+```
+
+Fitting titration level model
+```{r calcNB, warning = FALSE}
+nb_counts_file <- "data/nb_counts_titrations.RDS"
+if(file.exists(nb_counts_file)){
+      nb_counts <- readRDS(nb_counts_file)
+}else{
+      # unclustered_nb <- calc_nb_prop(count_df %>% filter(pipe == "unclustered"),
+      #                          fit_file = paste0("data/nb_fit_","unclustered","_titration.RDS"),
+      #                          prop_file = paste0("data/nb_counts_","unclustered","_titration.RDS"),
+      #                          fit_level = "titration")    
+  
+      gc()
+      dada_nb <- calc_nb_prop(count_df %>% filter(pipe == "dada2"),
+                              fit_file = paste0("data/nb_fit_","dada2","_titration.RDS"), 
+                              prop_file = paste0("data/nb_counts_","dada2","_titration.RDS"),
+                              fit_level = "titration")
+      gc()
+      qiime_nb <- calc_nb_prop(count_df %>% filter(pipe == "qiime"),
+                               fit_file = paste0("data/nb_fit_","qiime","_titration.RDS"), 
+                               prop_file = paste0("data/nb_counts_","qiime","_titration.RDS"),
+                               fit_level = "titration")
+      gc()
+      mothur_nb <- calc_nb_prop(count_df %>% filter(pipe == "mothur"),
+                                fit_file = paste0("data/nb_fit_","mothur","_titration.RDS"), 
+                                prop_file = paste0("data/nb_counts_","mothur","_titration.RDS"),
+                                fit_level = "titration")
+      gc()
+      # nb_counts <- bind_rows(dada_nb, qiime_nb, mothur_nb, unclustered_nb)
+      nb_counts <- bind_rows(dada_nb, qiime_nb, mothur_nb)
+      saveRDS(nb_counts, "data/nb_counts_titrations.RDS")
+}
+```
+
+Sanity check for proportion estimates are between 0 and 1
+
+```{r}
+min(nb_counts$nb_prop) < 0
+```
+
+```{r}
+max(nb_counts$nb_prop) > 1
+```
+
+```{r}
+nb_counts %>% filter(nb_prop > 1)
+```

@@ -1,0 +1,174 @@
+---
+title: "Generate PA Data Frame"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+always_allow_html: yes
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r message = FALSE}
+library(metagenomeSeq)
+library(tidyverse)
+get_mrexp <- function() {
+  mrexp_list <- list(
+    dada2 =  "data/dada2_mrexp.rds",
+    mothur = "data/mothur_mrexp.rds",
+    qiime =  "data/qiime_mrexp.rds",
+    unclustered =  "data/unclustered_mrexp.rds"
+  )  %>%
+    map(readRDS)
+}
+mrexp <- get_mrexp()
+```
+
+## Objective
+Generate data frame with feature-level presence absence information.
+
+* generate count data frame
+* convert counts to 0-1 
+* summarise by total, Titration, and mix
+
+```{r}
+get_count_df <- function(mrobj, agg_genus = FALSE, css = TRUE){
+      if(agg_genus){
+            mrobj <- aggregateByTaxonomy(mrobj, lvl = "Rank6", 
+                                         norm = FALSE, log = FALSE, sl = 1)
+      }
+      
+      if(css == TRUE){
+            mrobj <- cumNorm(mrobj, p = 0.75)
+            count_mat <- MRcounts(mrobj, norm = TRUE, log = FALSE, sl = 1000)
+      }else{
+            count_mat <- MRcounts(mrobj, norm = FALSE, log = FALSE, sl = 1)
+      }
+       count_mat %>%  
+            as.data.frame() %>% 
+            rownames_to_column(var = "feature_id") %>% 
+            gather("id","count", -feature_id)
+}
+
+## Converting count matrix to data frame
+counts_df <- mrexp %>% 
+      map_df(get_count_df, css = FALSE, .id = "pipe") %>% 
+      ## Adding sample metadata
+      left_join(pData(mrexp$dada2)) %>% 
+      filter(biosample_id != "NTC") %>% 
+      ## Making t_fctr a charater string with two numeric positions - maintains ordering
+      mutate(t_fctr = paste0("T", str_pad(t_fctr, 2, side = "left", pad = "0")))
+
+## Converting counts to presence/ absence
+pa_counts_df <- counts_df %>% 
+      mutate(pa_count = if_else(count > 0, 1, 0)) %>% 
+      select(pipe, biosample_id, id, feature_id, t_fctr, pa_count) 
+      
+## Total, Titration, and Unmixed total observed values
+pa_df <- pa_counts_df %>% 
+      ## Number of PCR reps by titration
+      group_by(biosample_id, pipe, t_fctr, feature_id) %>% 
+      summarise(pa_titration = sum(pa_count)) %>% 
+      ## Number of of PCR reps total
+      group_by(biosample_id, pipe, feature_id) %>% 
+      mutate(pa_total = sum(pa_titration)) %>% 
+      ## Unmixed and Mixed PA counts
+      spread(t_fctr, pa_titration) %>% 
+      mutate(pa_unmixed = T00 + T20,  ## Number of PCR reps unmixed pre/post
+             pa_mixed = pa_total - pa_unmixed) ## Number of PCR reps mixed 
+
+## Summary PA Values
+pa_summary <- pa_df %>% 
+      filter(pa_total != 0) %>% 
+      select(biosample_id, pipe, feature_id, T00, T20, 
+             pa_unmixed, pa_mixed, pa_total)
+
+
+## PA Annotation
+pa_summary_anno <- pa_summary %>% 
+      mutate(full_pre = if_else(T20 == 4, 1, 0),
+             full_post = if_else(T00 == 4, 1, 0),
+             full_unmixed = if_else(T00 + T20 == 8, 1, 0),
+             pre_specific = if_else(T20 == 4 & T00 == 0, 1, 0),
+             post_specific = if_else(T20 == 0 & T00 == 4, 1, 0),
+             pa_specific = case_when(
+                   pa_unmixed != 0 & pa_mixed != 0 ~ "unspecific",
+                   pa_unmixed != 0 & pa_mixed == 0 ~ "unmixed",
+                   pa_unmixed == 0 & pa_mixed != 0 ~ "mixed"))
+
+saveRDS(pa_summary_anno, "data/pa_summary_anno_df.RDS")
+```
+
+Pre-Post Specific Sanity Check - should not be any features with values > 1
+```{r}
+filter(pa_summary_anno, pre_specific + post_specific + full_unmixed > 1)
+```
+
+
+## Summary Plots
+
+### Overall PCR Replicate Count Distributions
+Most of the features are only observed in 1 of the 36 PCR replicates. 
+Of the features observed in more than 1 PCR replicates, DADA2 has the highest proportion of features observed in more than 20 PCR replicates.  
+
+```{r fig.cap = "Distribution in the number of PCR replicates a feature is observed in for a pipeline and biological replicate. The maximum number of PCR replicates is 36, 4 PCR replicates for the seven titrations and the two endpoints (unmixed samples)."}
+pa_df %>% ggplot() + 
+      geom_histogram(aes(x = pa_total)) +
+      theme_bw() +
+      labs(x = "Number of PCR replicates")
+```
+
+```{r}
+pa_df %>% filter(pa_total > 1) %>% ggplot() + 
+      geom_histogram(aes(x = pa_total)) + 
+      facet_grid(pipe~biosample_id, scales = "free_y") + 
+      theme_bw()
+```
+
+
+### Pre and Post Specific Features
+```{r}
+pa_summary_long <- pa_summary %>% 
+      filter(pa_total > 1)  %>% 
+      select(-pa_total, -pa_unmixed, -pa_mixed) %>% 
+      gather("count_class", "pa_count", -biosample_id, -pipe, -feature_id) 
+pa_summary_long %>% ggplot() +
+      geom_violin(aes(y = pa_count, x = biosample_id)) + 
+      facet_grid(count_class ~ pipe, scales = "free_y") +
+      theme_bw() + 
+      theme(axis.text.x = element_text(angle = 90))
+```
+
+## Breakdown of Feature Types
+```{r}
+pa_summary_anno %>% ggplot() + 
+      geom_bar(aes(x = pa_specific)) + 
+      facet_grid(pipe ~ biosample_id, scales = "free_y") + 
+      theme_bw() +
+      labs(x = "Feature Specificity") +
+      theme(axis.text.x = element_text(angle = 90))
+```
+
+Useable features for analysis based on presence absence in unmixed samples.
+The 
+```{r}
+pre_post_cat_df <- pa_summary_anno %>% 
+      # excluding features only observed in endpoints
+      filter(pa_specific != "unmixed") %>% 
+      select(biosample_id, pipe, feature_id, 
+             pre_specific, post_specific, full_unmixed) %>% 
+      gather("pre_post_cat", "value", -biosample_id, -pipe, -feature_id) %>% 
+      filter(value == 1)
+ggplot(pre_post_cat_df) + geom_bar(aes(x = pre_post_cat)) + 
+      facet_grid(pipe~biosample_id) +
+      theme_bw() + theme(axis.text.x = element_text(angle = 90))
+```
+
+Of the useable features for the quantitative analysis section the proportion of features that are present in all four PCR replicates for the unmixed pre, post, or both samples varies by pipeline. 
+One would expect these to be consistent across pipelines. 
+
+```{r}
+ggplot(pre_post_cat_df) + geom_bar(aes(x =pipe, fill = pre_post_cat), 
+                                   position = "fill") +
+      facet_grid(.~biosample_id) +
+      theme_bw() + theme(axis.text.x = element_text(angle = 90))
+```

@@ -1,0 +1,34 @@
+---
+title: "Mixture_Design"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+Samples collected at multiple timepoints during a Enterotoxigenic _E. coli_ (ETEC) vaccine trial [@harro2011refinement] were used to generate a two-sample titration dataset for assessing the 16S rRNA marker-gene survey measurement process.
+Samples from five trial participants were selected for our two-sample titration dataset.
+Trial participants (subjects) and sampling timepoints were selected based on _E. coli_ abundance data collected using qPCR and 16S rRNA sequencing from @pop2016individual.
+Only individuals with no _E. coli_ detected in samples collected from trial participants prior to ETEC exposure (PRE) were used for our two-samples titrations.
+Post ETEC exposure (POST) samples were identified as the timepoint after exposure to ETEC with the highest _E. coli_ concentration for each subject (Fig. \@ref(fig:countExperimentalDesign)A).
+Due to limited sample availability, for E01JH0016 the timepoint with the second highest _E. coli_ concentration was used as the POST sample.
+Independent titration series were generated for each subject, where POST samples were titrated into PRE samples with POST proportions of 1/2, 1/4, 1/8, 1/16, 1/32, 1/1,024, and 1/32,768 (Fig. \@ref(fig:countExperimentalDesign)B).
+Unmixed (PRE and POST) sample DNA concentration was measured using NanoDrop ND-1000 (Thermo Fisher Scientific Inc. Waltham, MA USA).
+Unmixed samples were diluted to 12.5 $ng/\mu L$ in tris-EDTA buffer before mixing.
+
+
+For our two-sample titration mixture design, the expected feature relative abundance can be calculated using equation  \@ref(eq:mixEq),
+where $\theta_i$, is the proportion of  POST DNA in titration $i$,
+$q_{ij}$ is the relative abundance of feature $j$ in titration $i$,
+and the relative abundance of feature $j$ in the unmixed PRE and POST samples is $q_{pre,j}$ and $q_{post,j}$.
+
+\begin{equation}
+  q_{ij} = \theta_i q_{post,j} + (1 - \theta_i) q_{pre,j}
+  (\#eq:mixEq)
+\end{equation}
+
+
+```{r countExperimentalDesign, echo=FALSE, fig.width = 6.68, fig.cap="Sample selection and experimental design for the two-sample titration 16S rRNA marker-gene-survey assessment dataset. A) Pre- and post-exposure (PRE and POST) samples from five vaccine trial participants were selected based on \\textit{Escherichia coli} abundance measured using qPCR and 454 16S rRNA sequencing (454-NGS), data from @pop2016individual. Counts represent normalized relative abundance values for 454-NGS and copies of the heat-labile toxin gene per $\\mu L$, a marker gene for ETEC, for qPCR. PRE and POST samples are indicated with orange and green data points, respectively. Grey points are other samples from the vaccine trial time series. B) Proportion of DNA from PRE and POST samples in titration series samples. PRE samples were titrated into POST samples following a $log_2$ dilution series. The NA titration factor represents the unmixed PRE sample. C) PRE and POST samples from the five vaccine trial participants, subjects, were used to generate independent two-sample titration series. The result was a total of 45 samples, 7 titrations + 2 unmixed samples times 5 subjects. Four replicate PCRs were performed for each of the 45 samples resulting in 190 PCRs."}
+knitr::include_graphics("img/experimentalDesign.png")
+```

@@ -1,0 +1,65 @@
+---
+title: "Sample Fix"
+author: "Nate Olson"
+date: "6/13/2019"
+output: html_document
+---
+
+## Overview
+Objective: Generate new phyloseq seq and mrexp objects with corrected sample ids. 
+
+Backgroud: A sample sheet error was observed when visualzing beta diversity across samples and titrations using PCA.
+Based on sample groupings and an image of the Plate map Shen sent the sample ids were corrected.
+
+## Loading packages
+```{r}
+library(tidyverse)
+library(phyloseq)
+```
+
+## Fix Biosample IDs
+```{r}
+fix_post_samples <- function(ps){
+  sam_data <- sample_data(ps) %>% 
+    mutate(biosample_id_fix = case_when(
+                              t_fctr == 0 & biosample_id == "E01JH0004" ~ "E01JH0017", 
+                              t_fctr == 0 & biosample_id == "E01JH0011" ~ "E01JH0004", 
+                              t_fctr == 0 & biosample_id == "E01JH0016" ~ "E01JH0011", 
+                              t_fctr == 0 & biosample_id == "E01JH0017" ~ "E01JH0016", 
+                              TRUE ~ biosample_id
+    ))
+  sample_data(ps)$biosample_id <- sam_data$biosample_id_fix
+  
+  ps
+}
+
+pipeline_dir <- "~/Projects/mgtst_pipelines"
+ps_list <- list(
+      dada2 = file.path(pipeline_dir, "dada2/dada_ps.rds"),
+      mothur =  file.path(pipeline_dir, "mothur/mothur_ps.rds"),
+      qiime =  file.path(pipeline_dir, "qiime/qiime_ps.rds"),
+      unclustered =  file.path(pipeline_dir, "mothur/unclustered_ps.rds")
+      ) %>% 
+      map(readRDS) %>% map(fix_post_samples)
+```
+
+## Save Phyloseq Objects
+```{r}
+for(i in 1:4){
+     saveRDS(ps_list[[i]], 
+             file.path("../data", paste0(names(ps_list)[i],"_ps.rds"))) 
+}
+
+```
+
+```{r}
+mrexp_list <- ps_list %>% map(phyloseq_to_metagenomeSeq)
+```
+
+```{r}
+for(i in 1:4){
+     saveRDS(mrexp_list[[i]], 
+             file.path("../data", paste0(names(mrexp_list)[i],"_mrexp.rds"))) 
+}
+```
+

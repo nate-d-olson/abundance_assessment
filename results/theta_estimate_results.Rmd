@@ -1,0 +1,213 @@
+---
+title: "Microbiome Scale Theta Estimate Results"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+```{r thetaSetup, warning=FALSE, message=FALSE, echo = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(tidyverse)
+library(stringr)
+library(modelr)
+```
+
+```{r thetaMunge, warning=FALSE, message=FALSE, echo = FALSE}
+## Raw counts
+raw_counts <- readRDS("data/raw_counts.RDS")
+
+## Negative Binomial Summaries
+nb_counts <- readRDS("data/nb_counts_titrations.RDS")
+
+## Pre-Post Expected Counts
+pre_post <- nb_counts %>%
+      filter(t_fctr %in% c(0,20)) %>%
+      mutate(t_fctr = if_else(t_fctr == 0, "post", "pre")) %>%
+      spread(t_fctr, nb_prop)
+
+total_count_df <- raw_counts %>%
+      group_by(pipe, biosample_id, id) %>%
+      summarise(total_count = sum(count))
+
+pre_post_exp_count <- pre_post %>%
+      left_join(total_count_df) %>%
+      mutate(post_count = post * total_count,
+             pre_count = pre * total_count)
+
+####### Feature Filters
+## PA - excluding features observed in less than 14 mixed sample PCR replicates
+pa_summary_anno_df <- readRDS("data/pa_summary_anno_df.RDS")
+
+pa_good <- pa_summary_anno_df %>%
+      ## Features present in all 4 PCR replicates for unmixed pre and/or post
+      filter(full_pre + full_post != 0) %>%
+      ## Observed in more than half of the titration PCRs
+      filter(pa_mixed >= 14)
+
+
+## logFC > 1 between pre and post with a p-value < 0.05
+pre_post_logFC_df <- readRDS("data/logFC_edgeR_df.RDS") %>%
+      ## Go back and change when logFC generated
+      dplyr::rename(feature_id = OTUname) %>%
+      dplyr::select(pipe, biosample_id, T1, T2, feature_id,
+             logFC, logCPM, PValue, FDR) %>%
+      filter(T1 == 0, T2 == 20)
+
+logFC_good <- pre_post_logFC_df %>%
+      filter(abs(logFC) > 1, FDR < 0.05)
+
+
+good_features <- pa_good %>% inner_join(logFC_good)
+
+count_good <- raw_counts %>%
+      right_join(good_features) %>% ## feature filtering
+      left_join(pre_post_exp_count)
+
+theta_est_df <- count_good %>%
+      filter(t_fctr %in% c(1:5,10,15)) %>%
+      dplyr::select(pipe, feature_id, id, pcr_rep, biosample_id,
+             t_fctr, count, post_count, pre_count, total_count)
+
+### Save data frame for supplemental
+saveRDS(theta_est_df, "results/data/theta_est_df.RDS")
+```
+
+```{r fitModel, warning=FALSE, message=FALSE, echo = FALSE}
+#### For a weighted regression ----------------------------
+## VOOM version - fit model error versus mean
+## use residuals vs. mean and estimate smooth function
+## use function as weight sigma vs. mean plot
+
+munge_strap <- function(data){
+      data %>% as.data.frame() %>%
+            add_column(boot_id = 1:nrow(.)) %>%
+            gather("pcr_count","count_val", -boot_id, -feature_id) %>%
+            separate(pcr_count, c("pcr_rep","count_type"), sep = "::") %>%
+            spread(count_type, count_val)
+}
+
+calc_boot_theta <- function(boot_theta_file, count_nb_good){
+      if (file.exists(boot_theta_file)) {
+            boot_theta_hat <- readRDS(boot_theta_file)
+            return(boot_theta_hat)
+      }
+      count_boot <- count_nb_good %>%
+            mutate(t_fctr = factor(t_fctr, levels = c(1:5,10,15)),
+                   theta = 2^-as.numeric(t_fctr),
+                   pcr_rep = paste0("pcr_",str_replace(pcr_rep, ":", "_"))) %>%
+            ungroup() %>%
+            dplyr::select(pipe, biosample_id, theta, t_fctr, feature_id,
+                   pcr_rep, count, post_count, pre_count, total_count) %>%
+            gather("count_type","count_val", -pipe, -biosample_id,
+                   -theta, -t_fctr, -feature_id, -pcr_rep) %>%
+            mutate(pcr_count = paste(pcr_rep, count_type, sep = "::")) %>%
+            dplyr::select(-pcr_rep, -count_type) %>%
+            spread(pcr_count, count_val) %>%
+            group_by(pipe, biosample_id, theta, t_fctr) %>%
+            nest() %>%
+            mutate(boot_dat = map(data, modelr::bootstrap, 1000))
+
+      boot_fit <- count_boot %>% dplyr::select(-data) %>% unnest() %>%
+            mutate(strap_pcr = map(strap, munge_strap)) %>%
+            mutate(fit = map(strap_pcr, ~lm(count ~ -1 + I(post_count - pre_count),
+                                            offset = pre_count, data = .)))
+
+      boot_theta_hat <- boot_fit %>%
+            mutate(theta_hat = map_dbl(fit, coef)) %>%
+            dplyr::select(-fit,-strap) %>%
+            group_by(pipe, biosample_id, theta, t_fctr) %>%
+            summarise(theta_hat_mean = mean(theta_hat),
+                      theta_hat_lci = quantile(theta_hat, probs = 0.025),
+                      theta_hat_uci = quantile(theta_hat, probs = 0.975),
+                      theta_var = var(theta_hat)) %>%
+            mutate(theta_bias = theta_hat_mean - theta)
+
+      saveRDS(boot_theta_hat, boot_theta_file)
+
+      boot_theta_hat
+}
+
+boot_theta_file <- "data/bootstrap_theta_estimates.RDS"
+boot_theta_hat <- calc_boot_theta(boot_theta_file, theta_est_df)
+```
+
+Human stool sample DNA extracts vary in the proportion of eukaryotic (primarily human) and prokaryotic DNA in the sample. To account for differences in the proportion of prokaryotic DNA in PRE and POST samples (Fig. \@ref(fig:bacPlot)) we inferred the proportion of POST sample prokaryotic DNA in a titration, $\theta$, using the 16S rRNA sequencing data (Fig. \@ref(fig:thetaHat)).
+Overall the relationship between the inferred and mixture design $\theta$ values were consistent across pipelines but not subject whereas the $\theta$ estimate 95\% CI varied by both subject and pipeline.
+For study subjects E01JH0004, E01JH0011, and E01JH0016 the inferred and mixture design $\theta$ values were in agreement, in contrast to study subjects E01JH0017 and E01JH0038.
+For E01JH0017 the inferred values were consistently less than the mixture design values.
+Whereas for E01JH0038 the inferred values were consistently greater than the mixture design values.
+These results were consistent with the qPCR prokaryotic DNA concentration results with significantly positive slopes for E01JH0004 and E01JH0016 and significantly negative slope for E01JH0038 (Fig. \@ref(fig:bacPlot)).
+
+
+```{r thetaHat, echo = FALSE, fig.width = 6.68, fig.cap = "Theta estimates by titration, biological replicate, and bioinformatic pipeline. The points indicates mean estimate of 1000 bootstrap theta estimates and errorbars 95\\% confidence interval. The black bar indicate expected theta values. Theta estimates below the expected theta indicate that the titrations contain less than expected bacterial DNA from the POST sample. Theta estimates greater than the expected theta indicate the titration contains more bacterial DNA from the PRE sample than expected."}
+# boot_theta_hat %>%
+#       ungroup() %>%
+#       mutate(pipe = factor(pipe, levels = c("unclustered","dada2","mothur","qiime"))) %>%
+#       ggplot() +
+#       geom_bar(aes(x = t_fctr, y =  theta), stat = "identity") +
+#       geom_point(aes(x = t_fctr, y = theta_hat_mean, color = pipe, shape = pipe)) +
+#       geom_errorbar(aes(x = t_fctr, ymin = theta_hat_lci,
+#                         ymax = theta_hat_uci, color = pipe),width = 0.2) +
+#       facet_grid(biosample_id~pipe, scale = "free_y") + theme_bw() +
+#       labs(x = "Titration Factor", y = expression(theta),
+#            color = "Pipeline", shape = "Pipeline") +
+#       theme(legend.position = "bottom")
+
+boot_theta_hat %>%
+      ungroup() %>%
+      mutate(pipe = factor(pipe, levels = c("unclustered","dada2","mothur","qiime"))) %>%
+      mutate(pipe = forcats::fct_recode(pipe, 
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+      mutate(xpos = (as.numeric(pipe) - 2.5)/5 + as.numeric(t_fctr))  %>%
+      ggplot() +
+      geom_bar(aes(x = t_fctr, y =  theta), stat = "identity", position = "dodge") +
+      geom_point(aes(x = xpos, y = theta_hat_mean, color = pipe, shape = pipe)) +
+      geom_errorbar(aes(x = xpos, ymin = theta_hat_lci,
+                        ymax = theta_hat_uci, color = pipe),width = 0.2) +
+      facet_wrap(~biosample_id, ncol = 2) + theme_bw() +
+      labs(x = "Titration Factor", y = expression(theta),
+           color = "Pipeline", shape = "Pipeline") +
+      theme(legend.position = c(0.8, 0.05))
+# ggsave("~/Desktop/theta_estimates.png", dpi = 450)
+```
+
+```{r echo = FALSE}
+## When accounting for subject effect, the pipelines are not different from the expected values
+## Not sure this is what we are interested in. More if they are different from each other and the subject specific effect
+# dat <- boot_theta_hat %>%
+#       mutate(t_fctr = as.numeric(as.character(t_fctr))) %>%
+#       filter(t_fctr %in% 1:4) %>%
+#       select(pipe, biosample_id, theta, t_fctr, theta_hat_mean) %>%
+#       spread(pipe, theta_hat_mean) %>%
+#       rename(mix_design = theta) %>%
+#       gather(pipe, theta, -biosample_id, -t_fctr) %>%
+#       mutate(t_fctr = factor(t_fctr)) %>%
+#       mutate(pipe = factor(pipe),
+#              pipe = fct_relevel(pipe, "mix_design"))
+#
+# fit <- lme4::lmer(theta ~ pipe + (1 | biosample_id / t_fctr), data = dat)
+# plot(fit)
+# summary(fit)
+
+
+## Testing for subject specific effects
+# dat <- boot_theta_hat %>%
+#       mutate(t_fctr = as.numeric(as.character(t_fctr))) %>%
+#       filter(t_fctr %in% 1:4) #%>%
+#       # select(pipe, biosample_id, theta, t_fctr, theta_hat_mean) %>%
+#       # spread(pipe, theta_hat_mean) %>%
+#       # rename(mix_design = theta) %>%
+#       # gather(pipe, theta, -biosample_id, -t_fctr) %>%
+#       # mutate(t_fctr = factor(t_fctr)) %>%
+#       # mutate(pipe = factor(pipe),
+#       #        pipe = fct_relevel(pipe, "mix_design"))
+#
+# fit <- lm(theta_hat_mean ~ -1 + theta/biosample_id, data = dat %>% filter(pipe == "unclustered"))
+# plot(fit)
+# summary(fit)
+```

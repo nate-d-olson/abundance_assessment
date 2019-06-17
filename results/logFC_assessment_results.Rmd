@@ -1,0 +1,274 @@
+---
+title: "logFC Assessment"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+
+
+```{r logFCsetup, include=FALSE}
+library(nlme)
+library(ape)
+library(multcomp)
+library(tidyverse)
+library(stringr)
+library(ggridges)
+library(ggpubr)
+```
+
+```{r logFCmunge, include = FALSE}
+### Loading Data ---------------------------------------------------------------
+### RDS file generated in 2017-10-19_logFC-error-metrics.RDS
+logFC_pre <- readRDS("data/logFC_pre.RDS")
+
+logFC_feature_summary <- readRDS("data/logFC_feature_summary.RDS") %>%
+      mutate(slope_error = 1 - slope)
+
+### logFC Est v. Exp Regression ------------------------------------------------
+logFCestVexp <- logFC_pre %>%
+      filter(T1 != 0, T2 != 20) %>%
+      ggplot() +
+      # geom_point(aes(x = exp_logFC, y = logFC), alpha = 0.15) +
+      geom_smooth(aes(x = exp_logFC, y = logFC, color = pipe), method = "lm") +
+      geom_abline(aes(intercept = 0, slope = 1), color = "grey20", linetype = 2) +
+      facet_wrap(~biosample_id, ncol = 1, scale = "free_y") + theme_bw()  +
+      labs(x = "Expected", y = "Estimate", color = "Pipeline")
+
+
+### Error Distribution ---------------------------------------------------------
+logFC_error <- logFC_pre %>%
+      filter(T1 != 0, T2 != 20) %>%
+      dplyr::select(biosample_id, pipe, feature_id, exp_logFC, logFC) %>%
+      mutate(error = abs(logFC - exp_logFC))
+
+logFC_error_dist <- logFC_error %>%
+      ggplot() +
+      geom_density_ridges(aes(x = error, y = pipe, color = pipe), alpha = 0.5) +
+      facet_wrap(~biosample_id, ncol = 1) + theme_bw() +
+      labs(x = "Error", y = "Pipeline", color = "Pipeline")
+
+### logFC Bias: 1-slope  -------------------------------------------------------
+slope_logFC <- logFC_feature_summary %>%
+      ggplot() +
+      geom_boxplot(aes(x = pipe, y = slope_error, color = pipe),
+                   outlier.shape = NA) +
+      geom_hline(aes(yintercept = 0), color = "grey20", linetype = 2) +
+      facet_wrap(~biosample_id, ncol = 1) +
+      theme_bw() +
+      labs(x = "Pipeline", y = "Bias", color = "Pipeline")
+
+ymin <- ggplot_build(slope_logFC)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(slope_logFC)$data[[1]]$ymax %>% max()
+slope_logFC <- slope_logFC + coord_cartesian(ylim = c(ymin, ymax))
+
+### logFC Variance: R2 ---------------------------------------------------------
+r2_logFC <- logFC_feature_summary %>%
+      # filter(slope < 4) %>%
+      ggplot() +
+      geom_boxplot(aes(x = pipe, y = adj.r.squared, color = pipe),
+                   outlier.shape = NA) +
+      geom_hline(aes(yintercept = 1), color = "grey20", linetype = 2) +
+      facet_wrap(~biosample_id, ncol = 1) +
+      theme_bw() +
+      labs(x = "Pipeline", y = "Variance$", color = "Pipeline")
+
+
+ymin <- ggplot_build(r2_logFC)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(r2_logFC)$data[[1]]$ymax %>% max()
+r2_logFC <- r2_logFC + coord_cartesian(ylim = c(ymin, ymax))
+```
+
+
+```{r logFCstats, echo = FALSE, message = FALSE, warning = FALSE}
+fit_dat <- logFC_feature_summary %>%
+      # filter(slope < 4) %>%
+      filter(pipe != "unclustered") %>%
+      mutate(pipe = factor(pipe))
+
+## Bias - Error rate -----------------------------------------------------------
+# Fitting mixed effects model with individual as the fixed effect
+slope_fit <- nlme::lme(slope_error ~ pipe, random =  ~ 1 | biosample_id,
+                 data = fit_dat)
+## Residual check
+# qqnorm(slope_fit$residuals) + abline(a = 0, b =  1, col = 'red')
+
+# Pipe 1-slope estimates
+dada_slope <- slope_fit$coefficients$fixed['(Intercept)']
+mothur_slope <- dada_slope + slope_fit$coefficients$fixed['pipemothur']
+qiime_slope <- dada_slope + slope_fit$coefficients$fixed['pipeqiime']
+
+slope_anova <- anova(slope_fit)
+slope_f <- slope_anova$`F-value`
+slope_p <- slope_anova$`p-value`
+
+# Checking whether indiviudal or pipeline contributes more to the overal vaiance
+slope_var <- ape::varcomp(slope_fit)
+
+## Variance - RCOV -------------------------------------------------------------
+# Fitting mixed effects model with individual as the fixed effect
+r2_fit <- nlme::lme(adj.r.squared ~ pipe, random =  ~ 1 | biosample_id,
+                 data = fit_dat)
+
+# qqnorm(r2_fit$residuals) + abline(a = 0, b =  1, col = 'red')
+
+# Pipe R2 estimates
+dada_r2 <- r2_fit$coefficients$fixed['(Intercept)']
+mothur_r2 <- dada_r2 + r2_fit$coefficients$fixed['pipemothur']
+qiime_r2 <- dada_r2 + r2_fit$coefficients$fixed['pipeqiime']
+
+r2_anova <- anova(r2_fit)
+r2_f <- r2_anova$`F-value`
+r2_p <- r2_anova$`p-value`
+
+# Checking whether indiviudal or pipeline contributes more to the overal vaiance
+r2_var <- ape::varcomp(r2_fit)
+```
+
+
+```{r logFCerror, fig.width = 6.68, fig.cap = "(A) Linear model or the relationship between log fold-change estimates and expected values for PRE-specific and PRE-dominant features by pipeline and individual, line color indicates pipelines. Dashed grey line indicates expected 1-to-1 relationship between the estimated and expected log fold-change. (B) Log fold-change error (|exp-est|) distribution by pipeline and individual.", echo = FALSE, warning=FALSE, message = FALSE}
+
+logFCestVexp <- logFC_pre %>% filter(T1 != 0, T2 != 20) %>%
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+      ggplot() +
+      geom_smooth(aes(x = exp_logFC, y = logFC, color = pipe), method = "lm") +
+      geom_abline(aes(intercept = 0, slope = 1), color = "grey20",
+                  linetype = 2) +
+      facet_wrap( ~ biosample_id, nrow = 1) +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0)) + 
+      labs(x = "Expected logFC", y = "Estimated logFC", color = "Pipeline")
+
+
+logFC_error_dist <- logFC_error %>%
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+      mutate(error = if_else(error < 1e-2, 1e-2, error)) %>%
+      ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = error, fill = pipe)) +
+      theme_bw() +
+      labs(y = "|Exp. logFC - Est. logFC|", x = "Individual", fill = "Pipeline") +
+      scale_y_log10(breaks = c(0.01, 0.1, 1.0, 10))
+
+ggarrange(logFCestVexp,
+          logFC_error_dist,
+          labels = "AUTO", align = "v",
+          ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
+```
+
+```{r}
+ggsave("~/Projects/MGTST-Manuscript/logFCerror-1.pdf", width = 170, units = "mm")
+```
+
+```{r logFcErrorMetrics, fig.width = 6.68, fig.cap = "Feature-level log-fold change error bias (A) and variance (B) metric distribution by subject and pipeline. The bias ($1 - slope$) and variance ($R^2$) metrics are derived from the linear model fit to the estimated and expected log fold-change values for individual features. Boxplot outliers, $1.5\\times IQR$ from the median were excluded from the figure to prevent extreme metric values from obscuring metric value visual comparisons.", echo = FALSE, warning=FALSE, message = FALSE}
+
+slope_logFC <- logFC_feature_summary %>%
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+      ggplot() +
+
+      geom_boxplot(aes(x = biosample_id, y = slope_error, fill = pipe),
+                   outlier.shape = NA) +
+      geom_hline(aes(yintercept = 0), color = "grey20", linetype = 2) +
+      theme_bw() +
+      labs(x = "Individual", y = "1-slope", fill = "Pipeline")
+
+ymin <- ggplot_build(slope_logFC)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(slope_logFC)$data[[1]]$ymax %>% max()
+slope_logFC <- slope_logFC + coord_cartesian(ylim = c(ymin, ymax))
+
+
+### logFC Variance: R2 ---------------------------------------------------------
+r2_logFC <- logFC_feature_summary %>%
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+    ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = adj.r.squared, fill = pipe),
+                   outlier.shape = NA) +
+      geom_hline(aes(yintercept = 1), color = "grey20", linetype = 2) +
+      theme_bw() +
+      labs(x = "Individual", y = expression(R^2), color = "Pipeline")
+
+ymin <- ggplot_build(r2_logFC)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(r2_logFC)$data[[1]]$ymax %>% max()
+r2_logFC <- r2_logFC + coord_cartesian(ylim = c(ymin, ymax))
+
+ggarrange(slope_logFC + rremove("x.text") + rremove("xlab"),
+          r2_logFC ,nrow = 2, ncol = 1, heights = c(0.45, 0.55),
+          common.legend = TRUE, legend = "bottom",
+          align = "v",labels = "AUTO")
+```
+
+```{r}
+ggsave("~/Projects/MGTST-Manuscript/logFcErrorMetrics-1.pdf", width = 170, units = "mm")
+```
+
+
+The agreement between log-fold change estimates and expected values were individual specific and consistent across pipelines (Fig. \@ref(fig:logFCerror)A).
+The individual specific effect was attributed to the fact that unlike relative abundance assessment the inferred $\theta$ values were not used to calculate expected values.
+Inferred $\theta$ values were not used to calculate the expected values because all of the titrations and the $\theta$ estimates for the higher titrations were included and they were not monotonically decreasing and therefore resulted in unrealistic expected log fold-change values, e.g., negative log-fold changes for PRE specific features.
+The log-fold change estimates and expected values were consistent across pipelines with one notable exception.
+For E01JH0011 the Mothur log fold-change estimates were more consistent with expected values than the other pipelines.
+However, as $\theta$ was not corrected for differences in the proportion of prokaryotic DNA between the unmixed PRE and POST samples it cannot be said whether Mothur's performance was better than the other pipelines.
+
+The log fold-change error distribution was consistent across pipelines (Fig. \@ref(fig:logFCerror)B).
+There was a long tail of high error features in the error distribution for all pipelines and individuals.
+The log fold-change estimates responsible for the long tail could not be attributed to specific titration comparisons.
+Additionally, we compared log-fold change error distributions for log-fold change estimates using different normalization methods.
+Error rate distributions, including the long tails, were consistent across normalization methods.
+Furthermore, as the long tail was observed for the unclustered data as well, the log-fold change estimates contributing to the long tail are likely due to a bias associated with the molecular laboratory portion of the measurement process and not the bioinformatic pipelines.
+Exploratory analysis of the relationship between the log fold-change estimates and expected values for individual features indicated that the long tails were attributed to feature specific performance.
+
+
+Feature-level log fold-change bias and variance metrics were used to compare pipeline performance (Fig. \@ref(fig:logFCerror)).
+Similar to relative abundance feature-level bias and variance metrics are defined as the $1 - slope$ and $R^2$ for linear models of the estimated and expected log fold-change for individual features and all titration comparisons.
+For the bias metric, $1 - slope$, the desired value is 0 (i.e., log fold-change estimate = log fold-change expected), with negative values indicating the log-fold change was consistently underestimated and positive values consistently overestimated.
+The linear model $R^2$ value was used to characterize the feature-level log fold-change variance as it indicates consistency between log fold-change estimates and expected values across titration comparisons.
+To compare bias and variance metrics across pipelines mixed-effects models were used.
+The log fold-change bias and variance metrics were not significantly different between pipelines (Bias: F = `r round(slope_f,2)`, p = `r round(slope_p,2)`, \@ref(fig:logFCerror)B, Variance: F = `r round(r2_f,2)`, p = `r round(r2_p,2)`, Fig. \@ref(fig:logFCerror)C).
+We also evaluated whether poor feature-level metrics could be attributed to specific clades for taxonomic groups.
+Similar to the relative abundance estimate, while a phylogenetic signal was detected for both the bias and variance metrics, no specific taxonomic groups or phylogenetic clades that performed poorly were identified.
+
+```{r eval=FALSE}
+## Example feature for assessment framework diagram
+logFCexample <- logFC_pre %>% filter(T1 != 0, T2 != 20, 
+                                     pipe == "dada2", 
+                                     biosample_id == "E01JH0011",
+                                     feature_id == "SV88") 
+
+logfc_fit <- lm(logFC~exp_logFC, data =logFCexample)
+slope_est <- logfc_fit$coefficients[[2]] %>% round(2)
+r2_est <- summary(logfc_fit)$adj.r.squared %>% round(2)
+
+logFCexample %>%
+      ggplot() +
+      geom_smooth(aes(x = exp_logFC, y = logFC), method = "lm") +
+      geom_text(aes(x = exp_logFC, y = logFC, label = paste0(T1,"-",T2))) +
+      geom_text(aes(x = 0.075, y = 1.1), label = paste0("1-Slope: ", 1- slope_est)) + 
+      geom_text(aes(x = 0.05, y = 1.0), label = paste0("R2: ", r2_est)) + 
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+      labs(x = "Expected", y = "Estimate") +
+      theme(legend.position = "none")
+ggsave("~/Projects/MGTST-Manuscript/diff_abu_metrics.pdf", height = 3, width = 5)
+```
+
+```{r}
+logFCestVexp
+```
+
