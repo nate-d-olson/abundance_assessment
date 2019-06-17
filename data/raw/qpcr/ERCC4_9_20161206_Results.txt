@@ -1,0 +1,140 @@
+* Block Type = 96-Well 0.1-mL Block
+* Calibration Background is expired  = Yes
+* Calibration Background performed on = 04-20-2016
+* Calibration Pure Dye ABY is expired = No
+* Calibration Pure Dye ABY performed on = 04-21-2016
+* Calibration Pure Dye FAM is expired = No
+* Calibration Pure Dye FAM performed on = 04-20-2016
+* Calibration Pure Dye JUN is expired = No
+* Calibration Pure Dye JUN performed on = 04-21-2016
+* Calibration Pure Dye NED is expired = No
+* Calibration Pure Dye NED performed on = 04-21-2016
+* Calibration Pure Dye ROX is expired = No
+* Calibration Pure Dye ROX performed on = 04-20-2016
+* Calibration Pure Dye SYBR is expired = No
+* Calibration Pure Dye SYBR performed on = 04-20-2016
+* Calibration Pure Dye TAMRA is expired = No
+* Calibration Pure Dye TAMRA performed on = 04-21-2016
+* Calibration Pure Dye VIC is expired = No
+* Calibration Pure Dye VIC performed on = 04-20-2016
+* Calibration ROI is expired  = Yes
+* Calibration ROI performed on = 04-20-2016
+* Calibration Uniformity is expired  = Yes
+* Calibration Uniformity performed on = 04-20-2016
+* Chemistry = TAQMAN
+* Date Created = 2017-01-02 19:00:12 PM EST
+* Experiment Barcode = 
+* Experiment Comment = NA
+* Experiment File Name = \\vmware-host\Shared Folders\Desktop\mix_qpcr_data\ERCC4_9_20161206.eds
+* Experiment Name = ERCC4_9_20161206
+* Experiment Run End Time = 2016-12-06 15:59:53 PM EST
+* Experiment Type = Standard Curve
+* Instrument Name =       272310160
+* Instrument Serial Number = 272310160
+* Instrument Type = QuantStudio™ 3 System
+* Passive Reference = ROX
+* Post-read Stage/Step = 
+* Pre-read Stage/Step = 
+* Quantification Cycle Method = Ct
+* Signal Smoothing On = true
+* Stage/ Cycle where Ct Analysis is performed = Stage2, Step2
+* User Name = NA
+
+[Results]
+Well	Well Position	Omit	Sample Name	Target Name	Task	Reporter	Quencher	CT	Ct Mean	Ct SD	Quantity	Quantity Mean	Quantity SD	Y-Intercept	R(superscript 2)	Slope	Efficiency	Automatic Ct Threshold	Ct Threshold	Automatic Baseline	Baseline Start	Baseline End	Amp Status	Comments	Cq Conf	CQCONF	HIGHSD
+1	A1	false		Target 1	STANDARD	FAM	NFQ-MGB	10.882	9.049	1.932	100,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+2	A2	false		Target 1	STANDARD	FAM	NFQ-MGB	10.709	9.049	1.932	100,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+3	A3	false		Target 1	STANDARD	FAM	NFQ-MGB	10.739	9.049	1.932	100,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+4	A4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.006	11.999	4.465	209,010.469	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+5	A5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.070	11.999	4.465	200,701.094	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+6	A6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	7.723	11.999	4.465	249,888.438	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	3	Amp			N	Y
+7	A7	false		Target 1	STANDARD	FAM	NFQ-MGB	7.907	9.049	1.932	100,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+8	A8	false		Target 1	STANDARD	FAM	NFQ-MGB	6.691	9.049	1.932	100,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	3	Amp			N	Y
+9	A9	false		Target 1	STANDARD	FAM	NFQ-MGB	7.366	9.049	1.932	100,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+10	A10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	7.285	11.999	4.465	329,288.594	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+11	A11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	5.573	11.999	4.465	968,704.125	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	3	Amp			N	Y
+12	A12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	7.774	11.999	4.465	241,919.391	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+13	B1	false		Target 1	STANDARD	FAM	NFQ-MGB	14.281	12.927	1.439	10,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+14	B2	false		Target 1	STANDARD	FAM	NFQ-MGB	14.056	12.927	1.439	10,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+15	B3	false		Target 1	STANDARD	FAM	NFQ-MGB	14.373	12.927	1.439	10,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+16	B4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	10.796	11.999	4.465	36,016.047	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+17	B5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	10.973	11.999	4.465	32,202.529	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+18	B6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.803	11.999	4.465	67,317.820	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+19	B7	false		Target 1	STANDARD	FAM	NFQ-MGB	11.576	12.927	1.439	10,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	7	Amp			N	Y
+20	B8	false		Target 1	STANDARD	FAM	NFQ-MGB	11.637	12.927	1.439	10,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	7	Amp			N	Y
+21	B9	false		Target 1	STANDARD	FAM	NFQ-MGB	11.638	12.927	1.439	10,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	7	Amp			N	Y
+22	B10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	11.873	11.999	4.465	18,258.980	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	7	Amp			N	Y
+23	B11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	11.177	11.999	4.465	28,325.764	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	7	Amp			N	Y
+24	B12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	12.633	11.999	4.465	11,312.764	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	7	Amp			N	Y
+25	C1	false		Target 1	STANDARD	FAM	NFQ-MGB	17.307	16.332	1.321	1,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	11	Amp			N	Y
+26	C2	false		Target 1	STANDARD	FAM	NFQ-MGB	17.725	16.332	1.321	1,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	12	Amp			N	Y
+27	C3	false		Target 1	STANDARD	FAM	NFQ-MGB	17.560	16.332	1.321	1,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	12	Amp			N	Y
+28	C4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.476	11.999	4.465	82,745.102	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+29	C5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	10.688	11.999	4.465	38,537.633	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+30	C6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.179	11.999	4.465	99,787.133	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+31	C7	false		Target 1	STANDARD	FAM	NFQ-MGB	15.205	16.332	1.321	1,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	10	Amp			N	Y
+32	C8	false		Target 1	STANDARD	FAM	NFQ-MGB	15.180	16.332	1.321	1,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	10	Amp			N	Y
+33	C9	false		Target 1	STANDARD	FAM	NFQ-MGB	15.017	16.332	1.321	1,000.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	10	Amp			N	Y
+34	C10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	13.078	11.999	4.465	8,544.623	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	8	Amp			N	Y
+35	C11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	12.824	11.999	4.465	10,028.191	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	8	Amp			N	Y
+36	C12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	13.518	11.999	4.465	6,473.352	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+37	D1	false		Target 1	STANDARD	FAM	NFQ-MGB	21.735	20.413	1.660	100.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	16	Amp			N	Y
+38	D2	false		Target 1	STANDARD	FAM	NFQ-MGB	22.124	20.413	1.660	100.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	17	Amp			N	Y
+39	D3	false		Target 1	STANDARD	FAM	NFQ-MGB	21.904	20.413	1.660	100.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	17	Amp			N	Y
+40	D4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.754	11.999	4.465	69,427.219	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+41	D5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	10.290	11.999	4.465	49,544.266	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+42	D6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.868	11.999	4.465	64,639.957	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+43	D7	false		Target 1	STANDARD	FAM	NFQ-MGB	19.056	20.413	1.660	100.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	13	Amp			N	Y
+44	D8	false		Target 1	STANDARD	FAM	NFQ-MGB	18.761	20.413	1.660	100.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	13	Amp			N	Y
+45	D9	false		Target 1	STANDARD	FAM	NFQ-MGB	18.896	20.413	1.660	100.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	14	Amp			N	Y
+46	D10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	14.077	11.999	4.465	4,551.261	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+47	D11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	13.940	11.999	4.465	4,961.995	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+48	D12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	14.073	11.999	4.465	4,563.314	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+49	E1	false		Target 1	STANDARD	FAM	NFQ-MGB	25.174	23.918	1.368	10.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	20	Amp			N	Y
+50	E2	false		Target 1	STANDARD	FAM	NFQ-MGB	25.082	23.918	1.368	10.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	19	Amp			N	Y
+51	E3	false		Target 1	STANDARD	FAM	NFQ-MGB	25.239	23.918	1.368	10.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	20	Amp			N	Y
+52	E4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.450	11.999	4.465	84,093.438	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+53	E5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	10.247	11.999	4.465	50,888.355	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	6	Amp			N	Y
+54	E6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	9.988	11.999	4.465	59,920.820	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+55	E7	false		Target 1	STANDARD	FAM	NFQ-MGB	22.730	23.918	1.368	10.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	17	Amp			N	Y
+56	E8	false		Target 1	STANDARD	FAM	NFQ-MGB	22.592	23.918	1.368	10.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	17	Amp			N	Y
+57	E9	false		Target 1	STANDARD	FAM	NFQ-MGB	22.688	23.918	1.368	10.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	17	Amp			N	Y
+58	E10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	15.255	11.999	4.465	2,166.801	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	10	Amp			N	Y
+59	E11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	15.747	11.999	4.465	1,589.210	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	10	Amp			N	Y
+60	E12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	15.314	11.999	4.465	2,086.983	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+61	F1	false		Target 1	STANDARD	FAM	NFQ-MGB	28.380	27.210	1.450	1.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	23	Amp			N	Y
+62	F2	false		Target 1	STANDARD	FAM	NFQ-MGB	28.529	27.210	1.450	1.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	23	Amp			N	Y
+63	F3	false		Target 1	STANDARD	FAM	NFQ-MGB	28.590	27.210	1.450	1.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	23	Amp			N	Y
+64	F4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	7.744	11.999	4.465	246,607.406	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	3	Amp			N	Y
+65	F5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.053	11.999	4.465	202,942.719	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+66	F6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.576	11.999	4.465	145,898.844	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+67	F7	false		Target 1	STANDARD	FAM	NFQ-MGB	26.273	27.210	1.450	1.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	21	Amp			N	Y
+68	F8	false		Target 1	STANDARD	FAM	NFQ-MGB	26.142	27.210	1.450	1.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	21	Amp			N	Y
+69	F9	false		Target 1	STANDARD	FAM	NFQ-MGB	25.345	27.210	1.450	1.000			27.441	0.951	-3.653	87.822	true	0.255	true	3	20	Amp			N	Y
+70	F10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	14.605	11.999	4.465	3,263.706	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+71	F11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	14.923	11.999	4.465	2,670.360	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+72	F12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	14.824	11.999	4.465	2,842.895	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	9	Amp			N	Y
+73	G1	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+74	G2	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+75	G3	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+76	G4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.775	11.999	4.465	128,710.766	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+77	G5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.760	11.999	4.465	129,930.625	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+78	G6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.886	11.999	4.465	119,994.695	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	5	Amp			N	Y
+79	G7	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+80	G8	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+81	G9	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+82	G10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	19.124	11.999	4.465	189.054	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	14	Amp			N	Y
+83	G11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	19.071	11.999	4.465	195.496	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	14	Amp			N	Y
+84	G12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	19.131	11.999	4.465	188.266	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	13	Amp			N	Y
+85	H1	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+86	H2	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+87	H3	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+88	H4	false		Target 1	UNKNOWN	FAM	NFQ-MGB	7.754	11.999	4.465	244,972.984	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	3	Amp			N	Y
+89	H5	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.109	11.999	4.465	195,923.234	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+90	H6	false		Target 1	UNKNOWN	FAM	NFQ-MGB	8.325	11.999	4.465	170,933.047	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	4	Amp			N	Y
+91	H7	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+92	H8	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+93	H9	false		Target 1	NTC	FAM	NFQ-MGB	Undetermined						27.441	0.951	-3.653	87.822	true	0.255	true	3	39	No Amp			Y	N
+94	H10	false		Target 1	UNKNOWN	FAM	NFQ-MGB	23.211	11.999	4.465	14.380	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	18	Amp			N	Y
+95	H11	false		Target 1	UNKNOWN	FAM	NFQ-MGB	23.988	11.999	4.465	8.815	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	18	Amp			N	Y
+96	H12	false		Target 1	UNKNOWN	FAM	NFQ-MGB	23.662	11.999	4.465	10.821	96,516.539	156,749.312	27.441	0.951	-3.653	87.822	true	0.255	true	3	18	Amp			N	Y

@@ -1,0 +1,21 @@
+Assay ID	Availability	Catalog Number	Assay Type	Gene Symbol	Gene Name	Alias	RefSeq	GenBank mRNA	Species	Amplicon Length	Best Coverage	3' Most	Matched Keywords
+Ac03459872_a1	Inventoried	4331182	GE	ERCC-00002	ERCC control 00002	ERCC 002	ERCC_00002.0		Artificial Control	69	No	No	qPCR artificial control
+Ac03459943_a1	Inventoried	4331182	GE	ERCC-00130	ERCC control 00130	ERCC 130	ERCC_00130.0		Artificial Control	135	No	No	qPCR artificial control
+Ac03459925_a1	Inventoried	4331182	GE	ERCC-00092	ERCC control 00092	ERCC 092	ERCC_00092.0		Artificial Control	87	No	No	qPCR artificial control
+Ac03459988_a1	Inventoried	4331182	GE	ERCC-00035	ERCC control 00035	ERCC 035	ERCC_00035.0		Artificial Control	58	No	No	qPCR artificial control
+Ac03460021_a1	Inventoried	4331182	GE	ERCC-00092	ERCC control 00092	ERCC 092	ERCC_00092.0		Artificial Control	101	No	No	qPCR artificial control
+Ac03459987_a1	Inventoried	4331182	GE	ERCC-00034	ERCC control 00034	ERCC 034	ERCC_00034.0		Artificial Control	58	No	No	qPCR artificial control
+Ac03460039_a1	Inventoried	4331182	GE	ERCC-00130	ERCC control 00130	ERCC 130	ERCC_00130.0		Artificial Control	72	No	No	qPCR artificial control
+Ac03459932_a1	Inventoried	4331182	GE	ERCC-00108	ERCC control 00108	ERCC 108	ERCC_00108.0		Artificial Control	73	No	No	qPCR artificial control
+Ac03459922_a1	Inventoried	4331182	GE	ERCC-00084	ERCC control 00084	ERCC 084	ERCC_00084.0		Artificial Control	63	No	No	qPCR artificial control
+Ac03459968_a1	Inventoried	4331182	GE	ERCC-00002	ERCC control 00002	ERCC 002	ERCC_00002.0		Artificial Control	75	No	No	qPCR artificial control
+Ac03459904_a1	Inventoried	4331182	GE	ERCC-00057	ERCC control 00057	ERCC 057	ERCC_00057.0		Artificial Control	64	No	No	qPCR artificial control
+Ac03459877_a1	Inventoried	4331182	GE	ERCC-00012	ERCC control 00012	ERCC 012	ERCC_00012.0		Artificial Control	77	No	No	qPCR artificial control
+Ac03460028_a1	Inventoried	4331182	GE	ERCC-00108	ERCC control 00108	ERCC 108	ERCC_00108.0		Artificial Control	74	No	No	qPCR artificial control
+Ac03459958_a1	Inventoried	4331182	GE	ERCC-00157	ERCC control 00157	ERCC 157	ERCC_00157.0		Artificial Control	71	No	No	qPCR artificial control
+Ac03460000_a1	Inventoried	4331182	GE	ERCC-00057	ERCC control 00057	ERCC 057	ERCC_00057.0		Artificial Control	78	No	No	qPCR artificial control
+Ac03460018_a1	Inventoried	4331182	GE	ERCC-00084	ERCC control 00084	ERCC 084	ERCC_00084.0		Artificial Control	107	No	No	qPCR artificial control
+Ac03460054_a1	Inventoried	4331182	GE	ERCC-00157	ERCC control 00157	ERCC 157	ERCC_00157.0		Artificial Control	76	No	No	qPCR artificial control
+Ac03459973_a1	Inventoried	4331182	GE	ERCC-00012	ERCC control 00012	ERCC 012	ERCC_00012.0		Artificial Control	143	No	No	qPCR artificial control
+Ac03459892_a1	Inventoried	4331182	GE	ERCC-00035	ERCC control 00035	ERCC 035	ERCC_00035.0		Artificial Control	65	No	No	qPCR artificial control
+Ac03459891_a1	Inventoried	4331182	GE	ERCC-00034	ERCC control 00034	ERCC 034	ERCC_00034.0		Artificial Control	88	No	No	qPCR artificial control

@@ -1,0 +1,10 @@
+#### Source data files for qPCR results
+## File Descriptions
+- *.eds: ABI qPCR data file format for the QuantStudio™ 3 System
+
+The following flat files were exported using QuantStudio software
+- *.Amplification Data.txt: Changes in fluorescence data with qPCR cycle by sample
+- *.Multicomponent Data.txt: Fluorescence measurement for each dye with qPCR cycle by sample
+- *.Raw Data.txt: Raw fluorescence measurement with qPCR cycle by sample
+- *.Results.txt: Sample Ct and amplification curve parameters
+- *.Sample Setup.txt: qPCR assay metadata

@@ -1,0 +1,108 @@
+* Block Type = 96-Well 0.1-mL Block
+* Calibration Background is expired  = Yes
+* Calibration Background performed on = 04-20-2016
+* Calibration Pure Dye ABY is expired = No
+* Calibration Pure Dye ABY performed on = 04-21-2016
+* Calibration Pure Dye FAM is expired = No
+* Calibration Pure Dye FAM performed on = 04-20-2016
+* Calibration Pure Dye JUN is expired = No
+* Calibration Pure Dye JUN performed on = 04-21-2016
+* Calibration Pure Dye NED is expired = No
+* Calibration Pure Dye NED performed on = 04-21-2016
+* Calibration Pure Dye ROX is expired = No
+* Calibration Pure Dye ROX performed on = 04-20-2016
+* Calibration Pure Dye SYBR is expired = No
+* Calibration Pure Dye SYBR performed on = 04-20-2016
+* Calibration Pure Dye TAMRA is expired = No
+* Calibration Pure Dye TAMRA performed on = 04-21-2016
+* Calibration Pure Dye VIC is expired = No
+* Calibration Pure Dye VIC performed on = 04-20-2016
+* Calibration ROI is expired  = Yes
+* Calibration ROI performed on = 04-20-2016
+* Calibration Uniformity is expired  = Yes
+* Calibration Uniformity performed on = 04-20-2016
+* Chemistry = TAQMAN
+* Date Created = 2017-01-02 11:06:00 AM EST
+* Experiment Barcode = 
+* Experiment Comment = NA
+* Experiment File Name = \\vmware-host\Shared Folders\Desktop\mix_qpcr_data\Nate_QDNA_P3_20161208.eds
+* Experiment Name = Nate_QDNA_P3_20161208
+* Experiment Run End Time = 2016-12-08 18:55:57 PM EST
+* Experiment Type = Standard Curve
+* Instrument Name =       272310160
+* Instrument Serial Number = 272310160
+* Instrument Type = QuantStudio™ 3 System
+* Passive Reference = 
+* Post-read Stage/Step = 
+* Pre-read Stage/Step = 
+* Quantification Cycle Method = Ct
+* Signal Smoothing On = true
+* Stage/ Cycle where Ct Analysis is performed = Stage2, Step3
+* User Name = NA
+
+[Results]
+Well	Well Position	Omit	Sample Name	Target Name	Task	Reporter	Quencher	CT	Ct Mean	Ct SD	Quantity	Quantity Mean	Quantity SD	Y-Intercept	R(superscript 2)	Slope	Efficiency	Automatic Ct Threshold	Ct Threshold	Automatic Baseline	Baseline Start	Baseline End	Amp Status	Comments	Cq Conf	HIGHSD	OUTLIERRG	CQCONF
+1	A1	false		Target 1	STANDARD	SYBR	None	14.013	13.966	0.067	20.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			N	N	N
+2	A2	false		Target 1	STANDARD	SYBR	None	13.919	13.966	0.067	20.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			N	N	N
+3	A3	false		Target 1	UNKNOWN	SYBR	None	16.679	18.797	5.197	4.700	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+4	A4	false		Target 1	UNKNOWN	SYBR	None	15.818	18.797	5.197	8.078	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+5	A5	false		Target 1	UNKNOWN	SYBR	None	17.768	18.797	5.197	2.369	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+6	A6	false		Target 1	UNKNOWN	SYBR	None	15.901	18.797	5.197	7.666	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+7	A7	false		Target 1	UNKNOWN	SYBR	None	19.183	18.797	5.197	0.973	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+8	A8	false		Target 1	UNKNOWN	SYBR	None	36.817	18.797	5.197	0.000	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	17	Amp			Y	N	N
+13	B1	false		Target 1	STANDARD	SYBR	None	18.842	18.151	0.978	2.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+14	B2	false		Target 1	STANDARD	SYBR	None	17.460	18.151	0.978	2.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+15	B3	false		Target 1	UNKNOWN	SYBR	None	17.918	18.797	5.197	2.156	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+16	B4	false		Target 1	UNKNOWN	SYBR	None	16.540	18.797	5.197	5.130	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+17	B5	false		Target 1	UNKNOWN	SYBR	None	17.009	18.797	5.197	3.820	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+18	B6	false		Target 1	UNKNOWN	SYBR	None	17.985	18.797	5.197	2.068	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+19	B7	false		Target 1	UNKNOWN	SYBR	None	17.642	18.797	5.197	2.565	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+20	B8	false		Target 1	UNKNOWN	SYBR	None	15.553	18.797	5.197	9.541	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			Y	N	N
+25	C1	false		Target 1	STANDARD	SYBR	None	21.735	21.384	0.496	0.200			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	10	Inconclusive			N	N	N
+26	C2	false		Target 1	STANDARD	SYBR	None	21.033	21.384	0.496	0.200			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	10	Inconclusive			N	N	N
+27	C3	false		Target 1	UNKNOWN	SYBR	None	17.474	18.797	5.197	2.852	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+28	C4	false		Target 1	UNKNOWN	SYBR	None	16.976	18.797	5.197	3.899	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+29	C5	false		Target 1	UNKNOWN	SYBR	None	17.646	18.797	5.197	2.560	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+30	C6	false		Target 1	UNKNOWN	SYBR	None	17.974	18.797	5.197	2.082	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+31	C7	false		Target 1	UNKNOWN	SYBR	None	18.806	18.797	5.197	1.234	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+32	C8	false		Target 1	UNKNOWN	SYBR	None	14.236	18.797	5.197	21.847	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			Y	N	N
+37	D1	false		Target 1	STANDARD	SYBR	None	26.898	25.867	1.458	0.020			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	13	Amp			Y	N	N
+38	D2	false		Target 1	STANDARD	SYBR	None	24.836	25.867	1.458	0.020			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	12	Amp			Y	N	N
+39	D3	false		Target 1	UNKNOWN	SYBR	None	27.537	18.797	5.197	0.005	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	14	Amp			Y	N	N
+40	D4	false		Target 1	UNKNOWN	SYBR	None	16.843	18.797	5.197	4.241	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+41	D5	false		Target 1	UNKNOWN	SYBR	None	17.942	18.797	5.197	2.124	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+42	D6	false		Target 1	UNKNOWN	SYBR	None	17.437	18.797	5.197	2.917	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+43	D7	false		Target 1	UNKNOWN	SYBR	None	19.633	18.797	5.197	0.734	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+44	D8	false		Target 1	UNKNOWN	SYBR	None	35.622	18.797	5.197	0.000	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	17	Amp			Y	N	N
+49	E1	false		Target 1	STANDARD	SYBR	None	30.832	29.607	1.732	0.002			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	15	Amp			Y	N	N
+50	E2	false		Target 1	STANDARD	SYBR	None	28.382	29.607	1.732	0.002			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	14	Amp			Y	N	N
+51	E3	false		Target 1	UNKNOWN	SYBR	None	18.230	18.797	5.197	1.772	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+52	E4	false		Target 1	UNKNOWN	SYBR	None	17.289	18.797	5.197	3.204	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+53	E5	false		Target 1	UNKNOWN	SYBR	None	18.517	18.797	5.197	1.480	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+54	E6	false		Target 1	UNKNOWN	SYBR	None	18.063	18.797	5.197	1.969	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+55	E7	false		Target 1	UNKNOWN	SYBR	None	19.984	18.797	5.197	0.588	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	10	Inconclusive			Y	N	N
+56	E8	false		Target 1	UNKNOWN	SYBR	None	14.789	18.797	5.197	15.433	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			Y	N	N
+61	F1	false		Target 1	STANDARD	SYBR	None	34.333	33.153	1.669	0.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	17	Amp			Y	N	N
+62	F2	false		Target 1	STANDARD	SYBR	None	31.972	33.153	1.669	0.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	18	Amp			Y	N	N
+63	F3	false		Target 1	UNKNOWN	SYBR	None	17.255	18.797	5.197	3.271	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+64	F4	false		Target 1	UNKNOWN	SYBR	None	16.521	18.797	5.197	5.193	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+65	F5	false		Target 1	UNKNOWN	SYBR	None	18.143	18.797	5.197	1.872	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+66	F6	false		Target 1	UNKNOWN	SYBR	None	16.542	18.797	5.197	5.124	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+67	F7	false		Target 1	UNKNOWN	SYBR	None	19.430	18.797	5.197	0.833	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+68	F8	false		Target 1	UNKNOWN	SYBR	None	17.449	18.797	5.197	2.896	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+73	G1	false		Target 1	STANDARD	SYBR	None	34.803	35.397	0.840	0.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	17	Amp			Y	N	N
+74	G2	false		Target 1	STANDARD	SYBR	None	35.990	35.397	0.840	0.000			19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	17	Amp			Y	N	N
+75	G3	false		Target 1	UNKNOWN	SYBR	None	16.893	18.797	5.197	4.108	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+76	G4	false		Target 1	UNKNOWN	SYBR	None	16.013	18.797	5.197	7.147	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+77	G5	false		Target 1	UNKNOWN	SYBR	None	17.908	18.797	5.197	2.170	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+78	G6	false		Target 1	UNKNOWN	SYBR	None	15.968	18.797	5.197	7.351	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+79	G7	false		Target 1	UNKNOWN	SYBR	None	19.995	18.797	5.197	0.584	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	10	Inconclusive			Y	N	N
+80	G8	false		Target 1	UNKNOWN	SYBR	None	15.251	18.797	5.197	11.539	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			Y	N	N
+85	H1	false		Target 1	NTC	SYBR	None	38.137						19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	23	Amp			N	N	N
+86	H2	false		Target 1	NTC	SYBR	None	37.179						19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	25	Amp			N	N	N
+87	H3	false		Target 1	UNKNOWN	SYBR	None	17.298	18.797	5.197	3.185	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+88	H4	false		Target 1	UNKNOWN	SYBR	None	15.640	18.797	5.197	9.036	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			Y	N	N
+89	H5	false		Target 1	UNKNOWN	SYBR	None	17.761	18.797	5.197	2.380	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	8	Inconclusive			Y	N	N
+90	H6	false		Target 1	UNKNOWN	SYBR	None	15.977	18.797	5.197	7.309	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	7	Inconclusive			Y	N	N
+91	H7	false		Target 1	UNKNOWN	SYBR	None	19.247	18.797	5.197	0.935	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	9	Inconclusive			Y	N	N
+92	H8	false		Target 1	UNKNOWN	SYBR	None	39.150	18.797	5.197	0.000	4.020	4.166	19.140	0.982	-3.661	87.554	true	1,808,034.125	true	3	26	Inconclusive			Y	Y	Y

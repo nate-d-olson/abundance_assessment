@@ -1,0 +1,12 @@
+# link to thermo page http://www.thermofisher.com/order/genome-database/browse/gene-expression/keyword/qPCR+artificial+control?ICID=uc-gex-qPCR+artificial+control#filters=primarygenes:^ERCC-00002$,^ERCC-00012$,^ERCC-00034$,^ERCC-00035$,^ERCC-00057$,^ERCC-00084$,^ERCC-00092$,^ERCC-00108$,^ERCC-00130$,^ERCC-00157$;;
+Control	Sample_spike	Treatment	length	GC (excluding polyA tail)
+ERCC-00002	E01JH0017	Post	1061	0.53
+ERCC-00012	E01JH0004	Post	994	0.52
+ERCC-00034	E01JH0011	Pre	1019	0.5
+ERCC-00035	E01JH0038	Post	1130	0.52
+ERCC-00057	E01JH0016	Pre	1021	0.51
+ERCC-00084	E01JH0004	Pre	994	0.52
+ERCC-00092	E01JH0038	Pre	1124	0.51
+ERCC-00108	E01JH0016	Post	1022	0.5
+ERCC-00130	E01JH0017	Pre	1059	0.47
+ERCC-00157	E01JH0011	Post	1019	0.51
