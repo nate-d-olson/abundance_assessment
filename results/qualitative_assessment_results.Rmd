@@ -166,7 +166,7 @@ ggarrange(mix_count_plot + rremove("x.text"), unmix_count_plot + rremove("x.text
 ```
 
 ```{r}
-ggsave("~/Projects/MGTST-Manuscript/qualPlot-1.pdf", width = 170, units = "mm")
+ggsave("figs/qualPlot-1.pdf", width = 170, units = "mm")
 ```
 
 Unmixed- and titration-specific features were observed for all pipelines (titration-specific: Fig. \@ref(fig:qualPlot)A, unmixed-specific: Fig. \@ref(fig:qualPlot)B).
