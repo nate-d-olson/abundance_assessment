@@ -166,7 +166,7 @@ ggarrange(logFCestVexp,
 ```
 
 ```{r}
-ggsave("~/Projects/MGTST-Manuscript/logFCerror-1.pdf", width = 170, units = "mm")
+ggsave("figs/logFCerror-1.pdf", width = 170, units = "mm")
 ```
 
 ```{r logFcErrorMetrics, fig.width = 6.68, fig.cap = "Feature-level log-fold change error bias (A) and variance (B) metric distribution by subject and pipeline. The bias ($1 - slope$) and variance ($R^2$) metrics are derived from the linear model fit to the estimated and expected log fold-change values for individual features. Boxplot outliers, $1.5\\times IQR$ from the median were excluded from the figure to prevent extreme metric values from obscuring metric value visual comparisons.", echo = FALSE, warning=FALSE, message = FALSE}
@@ -215,7 +215,7 @@ ggarrange(slope_logFC + rremove("x.text") + rremove("xlab"),
 ```
 
 ```{r}
-ggsave("~/Projects/MGTST-Manuscript/logFcErrorMetrics-1.pdf", width = 170, units = "mm")
+ggsave("figs/logFcErrorMetrics-1.pdf", width = 170, units = "mm")
 ```
 
 
@@ -234,15 +234,15 @@ Error rate distributions, including the long tails, were consistent across norma
 Furthermore, as the long tail was observed for the unclustered data as well, the log-fold change estimates contributing to the long tail are likely due to a bias associated with the molecular laboratory portion of the measurement process and not the bioinformatic pipelines.
 Exploratory analysis of the relationship between the log fold-change estimates and expected values for individual features indicated that the long tails were attributed to feature specific performance.
 
-
+<!-- __NEED TO CHECK IF CONSISTENT WITH NEW RESULTS__ -->
 Feature-level log fold-change bias and variance metrics were used to compare pipeline performance (Fig. \@ref(fig:logFCerror)).
-Similar to relative abundance feature-level bias and variance metrics are defined as the $1 - slope$ and $R^2$ for linear models of the estimated and expected log fold-change for individual features and all titration comparisons.
+<!-- Similar to relative abundance feature-level bias and variance metrics are defined as the $1 - slope$ and $R^2$ for linear models of the estimated and expected log fold-change for individual features and all titration comparisons. -->
 For the bias metric, $1 - slope$, the desired value is 0 (i.e., log fold-change estimate = log fold-change expected), with negative values indicating the log-fold change was consistently underestimated and positive values consistently overestimated.
 The linear model $R^2$ value was used to characterize the feature-level log fold-change variance as it indicates consistency between log fold-change estimates and expected values across titration comparisons.
 To compare bias and variance metrics across pipelines mixed-effects models were used.
-The log fold-change bias and variance metrics were not significantly different between pipelines (Bias: F = `r round(slope_f,2)`, p = `r round(slope_p,2)`, \@ref(fig:logFCerror)B, Variance: F = `r round(r2_f,2)`, p = `r round(r2_p,2)`, Fig. \@ref(fig:logFCerror)C).
-We also evaluated whether poor feature-level metrics could be attributed to specific clades for taxonomic groups.
-Similar to the relative abundance estimate, while a phylogenetic signal was detected for both the bias and variance metrics, no specific taxonomic groups or phylogenetic clades that performed poorly were identified.
+<!-- The log fold-change bias and variance metrics were not significantly different between pipelines (Bias: F = `r round(slope_f,2)`, p = `r round(slope_p,2)`, \@ref(fig:logFCerror)B, Variance: F = `r round(r2_f,2)`, p = `r round(r2_p,2)`, Fig. \@ref(fig:logFCerror)C). -->
+<!-- We also evaluated whether poor feature-level metrics could be attributed to specific clades for taxonomic groups. -->
+<!-- Similar to the relative abundance estimate, while a phylogenetic signal was detected for both the bias and variance metrics, no specific taxonomic groups or phylogenetic clades that performed poorly were identified. -->
 
 ```{r eval=FALSE}
 ## Example feature for assessment framework diagram
@@ -265,7 +265,7 @@ logFCexample %>%
       theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
       labs(x = "Expected", y = "Estimate") +
       theme(legend.position = "none")
-ggsave("~/Projects/MGTST-Manuscript/diff_abu_metrics.pdf", height = 3, width = 5)
+ggsave("figs/diff_abu_metrics.pdf", height = 3, width = 5)
 ```
 
 ```{r}

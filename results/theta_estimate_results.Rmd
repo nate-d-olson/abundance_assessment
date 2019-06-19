@@ -134,27 +134,15 @@ boot_theta_hat <- calc_boot_theta(boot_theta_file, theta_est_df)
 ```
 
 Human stool sample DNA extracts vary in the proportion of eukaryotic (primarily human) and prokaryotic DNA in the sample. To account for differences in the proportion of prokaryotic DNA in PRE and POST samples (Fig. \@ref(fig:bacPlot)) we inferred the proportion of POST sample prokaryotic DNA in a titration, $\theta$, using the 16S rRNA sequencing data (Fig. \@ref(fig:thetaHat)).
-Overall the relationship between the inferred and mixture design $\theta$ values were consistent across pipelines but not subject whereas the $\theta$ estimate 95\% CI varied by both subject and pipeline.
-For study subjects E01JH0004, E01JH0011, and E01JH0016 the inferred and mixture design $\theta$ values were in agreement, in contrast to study subjects E01JH0017 and E01JH0038.
-For E01JH0017 the inferred values were consistently less than the mixture design values.
-Whereas for E01JH0038 the inferred values were consistently greater than the mixture design values.
-These results were consistent with the qPCR prokaryotic DNA concentration results with significantly positive slopes for E01JH0004 and E01JH0016 and significantly negative slope for E01JH0038 (Fig. \@ref(fig:bacPlot)).
+Overall the relationship between the inferred and mixture design $\theta$ values were consistent across pipelines but not subject whereas the $\theta$ estimate varied by subject.
+<!-- UPDATE WITH NEW RESULTS -->
+<!-- For study subjects E01JH0004, E01JH0011, and E01JH0016 the inferred and mixture design $\theta$ values were in agreement, in contrast to study subjects E01JH0017 and E01JH0038. -->
+<!-- For E01JH0017 the inferred values were consistently less than the mixture design values. -->
+<!-- Whereas for E01JH0038 the inferred values were consistently greater than the mixture design values. -->
+<!-- These results were consistent with the qPCR prokaryotic DNA concentration results with significantly positive slopes for E01JH0004 and E01JH0016 and significantly negative slope for E01JH0038 (Fig. \@ref(fig:bacPlot)). -->
 
 
 ```{r thetaHat, echo = FALSE, fig.width = 6.68, fig.cap = "Theta estimates by titration, biological replicate, and bioinformatic pipeline. The points indicates mean estimate of 1000 bootstrap theta estimates and errorbars 95\\% confidence interval. The black bar indicate expected theta values. Theta estimates below the expected theta indicate that the titrations contain less than expected bacterial DNA from the POST sample. Theta estimates greater than the expected theta indicate the titration contains more bacterial DNA from the PRE sample than expected."}
-# boot_theta_hat %>%
-#       ungroup() %>%
-#       mutate(pipe = factor(pipe, levels = c("unclustered","dada2","mothur","qiime"))) %>%
-#       ggplot() +
-#       geom_bar(aes(x = t_fctr, y =  theta), stat = "identity") +
-#       geom_point(aes(x = t_fctr, y = theta_hat_mean, color = pipe, shape = pipe)) +
-#       geom_errorbar(aes(x = t_fctr, ymin = theta_hat_lci,
-#                         ymax = theta_hat_uci, color = pipe),width = 0.2) +
-#       facet_grid(biosample_id~pipe, scale = "free_y") + theme_bw() +
-#       labs(x = "Titration Factor", y = expression(theta),
-#            color = "Pipeline", shape = "Pipeline") +
-#       theme(legend.position = "bottom")
-
 boot_theta_hat %>%
       ungroup() %>%
       mutate(pipe = factor(pipe, levels = c("unclustered","dada2","mothur","qiime"))) %>%
@@ -173,41 +161,5 @@ boot_theta_hat %>%
       labs(x = "Titration Factor", y = expression(theta),
            color = "Pipeline", shape = "Pipeline") +
       theme(legend.position = c(0.8, 0.05))
-# ggsave("~/Desktop/theta_estimates.png", dpi = 450)
 ```
 
-```{r echo = FALSE}
-## When accounting for subject effect, the pipelines are not different from the expected values
-## Not sure this is what we are interested in. More if they are different from each other and the subject specific effect
-# dat <- boot_theta_hat %>%
-#       mutate(t_fctr = as.numeric(as.character(t_fctr))) %>%
-#       filter(t_fctr %in% 1:4) %>%
-#       select(pipe, biosample_id, theta, t_fctr, theta_hat_mean) %>%
-#       spread(pipe, theta_hat_mean) %>%
-#       rename(mix_design = theta) %>%
-#       gather(pipe, theta, -biosample_id, -t_fctr) %>%
-#       mutate(t_fctr = factor(t_fctr)) %>%
-#       mutate(pipe = factor(pipe),
-#              pipe = fct_relevel(pipe, "mix_design"))
-#
-# fit <- lme4::lmer(theta ~ pipe + (1 | biosample_id / t_fctr), data = dat)
-# plot(fit)
-# summary(fit)
-
-
-## Testing for subject specific effects
-# dat <- boot_theta_hat %>%
-#       mutate(t_fctr = as.numeric(as.character(t_fctr))) %>%
-#       filter(t_fctr %in% 1:4) #%>%
-#       # select(pipe, biosample_id, theta, t_fctr, theta_hat_mean) %>%
-#       # spread(pipe, theta_hat_mean) %>%
-#       # rename(mix_design = theta) %>%
-#       # gather(pipe, theta, -biosample_id, -t_fctr) %>%
-#       # mutate(t_fctr = factor(t_fctr)) %>%
-#       # mutate(pipe = factor(pipe),
-#       #        pipe = fct_relevel(pipe, "mix_design"))
-#
-# fit <- lm(theta_hat_mean ~ -1 + theta/biosample_id, data = dat %>% filter(pipe == "unclustered"))
-# plot(fit)
-# summary(fit)
-```

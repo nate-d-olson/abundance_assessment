@@ -7,8 +7,7 @@ output:
     toc: FALSE
 ---
 
-```{r theta_setup, warning=FALSE, message=FALSE, echo = FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```{r theta_setup, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(stringr)
 library(modelr)
@@ -69,8 +68,6 @@ theta_est_df <- count_good %>%
       filter(t_fctr %in% c(1:5,10,15)) %>% 
       select(pipe, feature_id, id, pcr_rep, biosample_id, 
              t_fctr, count, post_count, pre_count, total_count) 
-## Exclusing unclustered for now - unable to comput NB counts due to computational requirements - RAM
-theta_est_df <- theta_est_df %>% filter(pipe != "unclustered")
 ```
 
 ```{r thetaFeaturesMA, echo = FALSE, fig.cap = "MA plot (x-axis mean abundance, y-axis log2 fold change between unmixed pre- and post-exposure samples. Orange points indicate features used to estimate theta. Dashed lines indicate the +/- 1 log2 fold change filter used when to pick features."}
@@ -96,22 +93,10 @@ pre_post_logFC_df %>% ggplot() +
       summarise(count = n()) %>% 
       spread(biosample_id, count) %>% 
       knitr::kable(booktab = TRUE, caption = "Number of features used to estimate theta by biological replicate and pipeline.")
-
-# # Sanity check not the same set of features for DADA2 pipeline E01JH0004 and E01JH0011 due to bug
-# theta_est_df %>%
-#       filter(pipe == "dada2", biosample_id %in% c("E01JH0004", "E01JH0011")) %>%
-#       select(pipe, feature_id, biosample_id) %>% unique() %>%
-#       group_by(feature_id) %>%
-#       summarise(count = n()) %>% .$count %>% summary()
 ```
 
 
 ```{r fitModel, warning=FALSE, message=FALSE, echo = FALSE}
-#### For a weighted regression ----------------------------
-## VOOM version - fit model error versus mean 
-## use residuals vs. mean and estimate smooth function 
-## use function as weight sigma vs. mean plot 
-
 munge_strap <- function(data){
       data %>% as.data.frame() %>% 
             add_column(boot_id = 1:nrow(.)) %>% 
@@ -164,9 +149,6 @@ calc_boot_theta <- function(boot_theta_file, count_nb_good){
 boot_theta_file <- "data/bootstrap_theta_estimates.rds"
 boot_theta_hat <- calc_boot_theta(boot_theta_file, theta_est_df)
 ```
-
-Statement regarding the number of features per biological replicate/ pipeline
-Statement about MA plot
 
 Consistent deviation across pipeline and titration from the expected $\theta$ values indicates our assumptions regarding the composition of the mixtures are not valid (Fig. \@ref(fig:thetaHat)). 
 Our assumptions are that the DNA from the pre- and post-treatment samples were titrated following a log2 dilution series and that the pre- and post-treatment samples contained similar proportions of bacterial DNA. 
