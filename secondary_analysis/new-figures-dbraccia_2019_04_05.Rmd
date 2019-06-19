@@ -1,0 +1,196 @@
+---
+title: "new-figures-DJB"
+author: "Domenick Braccia"
+date: "4/5/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+Contributing to the figures for mgtst-pub
+
+## Getting & tidying data
+
+```{r get data, message=FALSE, warning=FALSE}
+test_1_1 <- readRDS("../data/mix_bayes_res/test_01_01.RDS")
+test_files <- list.files("../data/mix_bayes_res/")
+all_tests <- data.frame(vector("numeric", 15935))
+for ( i in 1:length(test_files) ) {
+      # loading in data into one data frame
+      current <- readRDS(paste("../data/mix_bayes_res/", test_files[i], sep = "")) %>% 
+            filter(biosample_id == "E01JH0004") # only making figure for 1 subject to illustate point
+      if (i == 1) {
+            all_tests[, i] <- current$pipe
+            colnames(all_tests)[i] <- "pipe"
+      }
+      all_tests[, i+1] <- current$adj.pvalue
+      
+      # changing names of columns
+      colnames(all_tests)[i+1] <- paste("params_", strsplit(strsplit(test_files[i], split = "test_")[[1]][2], "[.]")[[1]][1], sep = "")
+}
+
+#selecting columns with alpha = 1:2 and beta = 1:2
+all_tests$pipe <- as.factor(all_tests$pipe)
+
+
+
+alpha_1 <- select(all_tests, 1:6)
+alpha_1_log <- cbind(pipe = alpha_1[, 1], -log10(alpha_1[, -1]))
+beta_1 <- select(all_tests, 1, 2, 7, 12, 17, 22)
+beta_1_log <- cbind(pipe = beta_1[, 1], -log10(beta_1[, -1]))
+```
+
+## Making plot function for box plot
+
+```{r plot functions, message=FALSE, warning=FALSE}
+# boxplots
+plot_box <- function(df, column, title){
+      #x.label <- 
+      ggplot(data = df, aes(x = pipe, y = column, col = pipe)) + 
+            theme_bw() + theme(legend.position = "none",
+                               axis.title.x = element_blank(),
+                               axis.title.y = element_blank(),
+                               axis.text.y = element_blank(),
+                               axis.ticks.y = element_blank(),
+                               title=element_text(size = 8)) + 
+            coord_flip() + geom_boxplot(alpha = 0.3, outlier.size = 0.8) +
+            geom_hline(yintercept =  -log10(0.05), linetype = "dashed", color = "black") +
+            labs(title = title) 
+}
+```
+
+
+## Making and arranging box plots
+
+### Box plots
+```{r ggarrange, message=FALSE, warning=FALSE}
+a1_b1 <- plot_box(alpha_1_log, alpha_1_log[["params_01_01"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+a1_b2 <- plot_box(alpha_1_log, alpha_1_log[["params_01_02"]], 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
+a1_b10 <- plot_box(alpha_1_log, alpha_1_log[["params_01_10"]], 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
+a1_b25 <- plot_box(alpha_1_log, alpha_1_log[["params_01_25"]], 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
+
+a1_b1_rep <- plot_box(alpha_1_log, alpha_1_log[["params_01_01"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") )
+a2_b1 <- plot_box(beta_1_log, beta_1_log[["params_02_01"]], 
+                 title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
+a10_b1 <- plot_box(beta_1_log, beta_1_log[["params_10_01"]], 
+                 title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
+a25_b1 <- plot_box(beta_1_log, beta_1_log[["params_25_01"]], 
+                 title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
+
+ggarrange(a1_b1, a1_b1_rep,
+          a1_b2, a2_b1,
+          a1_b10, a10_b1,
+          a1_b25, a25_b1,
+          ncol = 2, nrow = 4,
+          legend = "top", common.legend = TRUE)
+```
+
+**DESCRIPTION**:
+
+To test whether our choice of uniform prior influced the results of the bayesian hypothesis test, we tried setting the prior to a beta distribution with various parametrizations of alpha and beta (note that alpha = beta = 1 reduces to the uniform distribution). Regardless of whether we choose a right-skewed or left-skewed beta prior, the hypothesis tests for each titration-specific feature resulted in nearly identical number of significant features per pipeline.
+
+The x-axis of the plots above are -log10(adjusted p-value) for each titration-specific feature as calculated from equation (4) and the dotted black line indcates the value for -log10(0.05), our determined threshold for significance. Should a feature recieve a p-value < 0.05 (to the right of the dotted black line), then its detection as a titration-specific feature could not be explained due to sampling alone, and thus is a result of the computational pipeline. DADA2 is the only computational pipeline for which a large proportion of the titration-specific features could not be explained by sampling alone.
+
+# Figure analagous to figure 9 (titration-specific features by pipeline)
+
+## Writing barplot function
+```{r bar plot functions, message=FALSE, warning=FALSE}
+plot_bar <- function(df, column, title){
+      ggplot(data = df) + 
+            theme(legend.position = "none",
+                               axis.title.x = element_blank(),
+                               axis.title.y = element_blank(),
+                               axis.text.y = element_blank(),
+                               axis.ticks.y = element_blank(),
+                               title=element_text(size = 8)) + 
+            coord_flip() + geom_bar(aes(x = pipe, col = column), 
+                                    fill = c( "blue", NA,"green", NA, "red", NA), 
+                                    position = "fill", 
+                                    size = 0,
+                                    show.legend = FALSE) +
+            labs(title = title)
+}
+```
+
+## Making and arranging bar plots
+
+```{r, }
+### prepping for bar plots
+## re-formatting alpha=1 data
+alpha_prop <- if_else((alpha_1 %>% as_tibble() %>%
+                  select("params_01_01", "params_01_02", "params_01_10", "params_01_25") ) < 0.05, 
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  cbind(alpha_1$pipe)
+
+# re-ordering and re-naming columns 
+alpha_prop <- alpha_prop[, c(6,1,2,3,4)]
+colnames(alpha_prop) <- c("pipe", "params_01_01", "params_01_02", "params_01_10", "params_01_25")
+
+# re-doing df with TRUE/FALSE for p-value < & >= 0.05
+alpha_prop_TF <- (alpha_prop[,2:5] == "p < 0.05") %>%
+      as.data.frame()
+alpha_prop_TF$pipe <- alpha_prop$pipe
+
+alpha_prop_TF_plot <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_01"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+
+## re-formatting beta=1
+beta_prop <- if_else((beta_1 %>% as_tibble() %>%
+                  select("params_01_01", "params_02_01", "params_10_01", "params_25_01") ) < 0.05, 
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  cbind(beta_1$pipe)
+
+# re-ordering and re-naming columns 
+beta_prop <- beta_prop[, c(6,1,2,3,4)]
+colnames(beta_prop) <- c("pipe", "params_01_01", "params_02_01", "params_10_01", "params_25_01")
+
+# re-doing df with TRUE/FALSE for p-value < & >= 0.05
+beta_prop_TF <- (beta_prop[,2:5] == "p < 0.05") %>%
+      as.data.frame()
+beta_prop_TF$pipe <- beta_prop$pipe
+
+beta_prop_TF_plot <- plot_bar(beta_prop_TF, beta_prop_TF[["params_01_01"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+
+#mutate(pval_cat = if_else(alpha_1[,2:6] < 0.05, "p < 0.05", "p >= 0.05"))
+
+# setting up each plot based on alpha and beta parametrization
+a1_b1 <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_01"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1 (uniform)") ) 
+a1_b2 <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_02"]], 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
+a1_b10 <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_10"]], 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
+a1_b25 <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_25"]], 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
+
+a1_b1_rep <- plot_bar(alpha_prop, alpha_prop_TF[["params_01_01"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1 (uniform)") )
+a2_b1 <- plot_bar(beta_prop_TF, beta_prop_TF[["params_02_01"]], 
+                 title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
+a10_b1 <- plot_bar(beta_prop_TF, beta_prop_TF[["params_10_01"]], 
+                 title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
+a25_b1 <- plot_bar(beta_prop_TF, beta_prop_TF[["params_25_01"]], 
+                 title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
+
+# ggarrange(a1_b1, a1_b1_rep,
+#           a1_b2, a2_b1,
+#           a1_b10, a10_b1,
+#           a1_b25, a25_b1,
+#           ncol = 2, nrow = 4,
+#           legend = "top")
+a1_b1
+```
+
+**DESCRIPTION**:
+
+This plot is analagous to the box plot made above where we consider titration-specifc features from subject 1. The x-axis shows the proportion of titration-specific features with a p-value result from bayesian test that is < 0.05 colored by pipeline (red = qiime, green = mothur, blue = dada2). In other words, the x-axis is the proportion of titration-specific features whose abundace could not be explained by sampling error alone. (first paragraph above explains impetus for figure well)
