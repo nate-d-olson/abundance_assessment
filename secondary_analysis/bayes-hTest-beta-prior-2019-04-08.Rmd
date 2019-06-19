@@ -1,0 +1,239 @@
+---
+title: "new-figures-DJB"
+author: "Domenick Braccia"
+date: "4/5/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+Contributing to the figures for mgtst-pub
+
+## Getting & tidying data
+
+The data being loaded below comes from running the bayesian hypothesis tests with a beta prior at various parameterizations of shape parameters alpha and beta. 
+
+```{r get data, message=FALSE, warning=FALSE}
+# loading results of bayesian hypothesis tests
+test_files <- list.files("../data/mix_bayes_res/")
+all_tests <- data.frame(vector("numeric", 15935)) # manually setting number of rows for subject "E01JH0004"
+for ( i in 1:length(test_files) ) {
+      # loading in current results into one data frame
+      current <- readRDS(paste("../data/mix_bayes_res/", test_files[i], sep = "")) %>% 
+            filter(biosample_id == "E01JH0004") # only making figure for 1 subject to illustate point
+      if (i == 1) {
+            all_tests[, i] <- current$pipe
+            colnames(all_tests)[i] <- "pipe"
+      }
+      all_tests[, i+1] <- current$adj.pvalue
+      
+      # changing names of columns
+      colnames(all_tests)[i+1] <- paste("params_", strsplit(strsplit(test_files[i], split = "test_")[[1]][2], "[.]")[[1]][1], sep = "")
+}
+
+#selecting columns with alpha = 1:2 and beta = 1:2
+all_tests$pipe <- as.factor(all_tests$pipe)
+
+# picking out select beta parameterizations for figure plots
+alpha_1 <- select(all_tests, pipe, params_1_1, params_1_2, params_1_10, params_1_25)
+beta_1 <- select(all_tests, pipe, params_10_10, params_2_1, params_10_1, params_25_1)
+
+# log scaling pvalues of hypothesis tests for better visualization.
+alpha_1_log <- cbind(pipe = alpha_1[, 1], -log10(alpha_1[, -1]))
+beta_1_log <- cbind(pipe = beta_1[, 1], -log10(beta_1[, -1]))
+```
+
+## Making plot function for box plot
+
+```{r plot functions, message=FALSE, warning=FALSE}
+# boxplots
+plot_box <- function(df, column, title){
+      ggplot(data = df, aes(x = pipe, y = column, col = pipe)) + 
+            theme_bw() + theme(legend.position = "none",
+                               axis.title.x = element_blank(),
+                               axis.title.y = element_blank(),
+                               axis.text.y = element_blank(),
+                               axis.ticks.y = element_blank(),
+                               title=element_text(size = 8)) + 
+            coord_flip() + geom_boxplot(alpha = 0.3, outlier.size = 0.8) +
+            geom_hline(yintercept =  -log10(0.05), linetype = "dashed", color = "black") +
+            labs(title = title)
+}
+```
+
+
+## Making and arranging box plots
+
+### Box plots
+```{r ggarrange, message=FALSE, warning=FALSE}
+a1_b1 <- plot_box(alpha_1_log, alpha_1_log$params_1_1, 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+a1_b2 <- plot_box(alpha_1_log, alpha_1_log$params_1_2, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
+a1_b10 <- plot_box(alpha_1_log, alpha_1_log$params_1_10, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
+a1_b25 <- plot_box(alpha_1_log, alpha_1_log$params_1_25, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
+
+a10_b10 <- plot_box(beta_1_log, beta_1_log$params_10_10, 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 10") )
+a2_b1 <- plot_box(beta_1_log, beta_1_log$params_2_1, 
+                 title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
+a10_b1 <- plot_box(beta_1_log, beta_1_log$params_10_1, 
+                 title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
+a25_b1 <- plot_box(beta_1_log, beta_1_log$params_25_1, 
+                 title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
+
+bayes_beta <- ggarrange(a1_b1, a10_b10,
+          a1_b2, a2_b1,
+          a1_b10, a10_b1,
+          a1_b25, a25_b1,
+          ncol = 2, nrow = 4,
+          legend = "top", common.legend = TRUE)
+bayes_beta
+ggsave("../results/bayes_beta.png")
+```
+
+**DESCRIPTION**:
+
+To test whether our choice of uniform prior influced the results of the bayesian hypothesis test, we tried setting the prior to a beta distribution with various parametrizations of alpha and beta (note that alpha = beta = 1 reduces to the uniform distribution). Regardless of whether we choose a right-skewed or left-skewed beta prior, the hypothesis tests for each titration-specific feature resulted in nearly identical number of significant features per pipeline.
+
+The x-axis of the plots above are -log10(adjusted p-value) for each titration-specific feature as calculated from equation (4) and the dotted black line indcates the value for -log10(0.05), our determined threshold for significance. Should a feature recieve a p-value < 0.05 (to the right of the dotted black line), then its detection as a titration-specific feature could not be explained due to sampling alone, and thus is an error of the computational pipeline. DADA2 is the only computational pipeline for which a large proportion of the titration-specific features could not be explained by sampling alone. The black text immediately to the left and right of the dotted black line are the proportions of titration-specific features which could and could not be explained by sampling error alone (respectively).
+
+# Figure analagous to figure 9 (titration-specific features by pipeline)
+
+## Writing barplot function
+```{r bar plot functions, message=FALSE, warning=FALSE}
+plot_bar <- function(df, column, title, ylabel){
+      ggplot(data = df) + 
+            theme(legend.position = "none",
+                  axis.title.x = element_blank(),
+                  axis.title.y = element_blank(),
+                  axis.text.y = element_blank(),
+                  axis.ticks.y = element_blank(),
+                  title=element_text(size = 8)) + 
+            theme_bw() +
+            geom_bar(aes(x = pipe, col = column), 
+                     fill = c( "grey", NA,"red", NA, "blue", NA), 
+                     position = "fill", 
+                     size = 0,
+                     show.legend = FALSE) +
+            #geom_text(aes(x = pipe, y = ylabel, label = column*100)) +
+            labs(title = title) + ylab("Proportion") 
+}
+```
+
+## Making and arranging bar plots
+
+```{r, }
+### prepping for bar plots
+## re-formatting alpha=1 data
+alpha_prop <- if_else((alpha_1 %>% as_tibble() %>%
+                  select("params_1_1", "params_1_2", "params_1_10", "params_1_25") ) < 0.05, 
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  cbind(alpha_1$pipe)
+
+# re-ordering and re-naming columns 
+alpha_prop <- alpha_prop[, c(6,1,2,3,4)]
+colnames(alpha_prop) <- c("pipe", "params_1_1", "params_1_2", "params_1_10", "params_1_25")
+
+# re-doing df with TRUE/FALSE for p-value < & >= 0.05
+alpha_prop_TF <- (alpha_prop[,2:5] == "p < 0.05") %>%
+      as.data.frame()
+alpha_prop_TF$pipe <- alpha_prop$pipe
+
+alpha_prop_TF_plot <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_1, 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+
+## re-formatting beta=1
+beta_prop <- if_else((beta_1 %>% as_tibble() %>%
+                  select("params_10_10", "params_2_1", "params_10_1", "params_25_1") ) < 0.05, 
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  cbind(beta_1$pipe)
+
+# re-ordering and re-naming columns 
+beta_prop <- beta_prop[, c(6,1,2,3,4)]
+colnames(beta_prop) <- c("pipe", "params_10_10", "params_2_1", "params_10_1", "params_25_1")
+
+# re-doing df with TRUE/FALSE for p-value < & >= 0.05
+beta_prop_TF <- (beta_prop[,2:5] == "p < 0.05") %>%
+      as.data.frame()
+beta_prop_TF$pipe <- beta_prop$pipe
+
+beta_prop_TF_plot <- plot_bar(beta_prop_TF, beta_prop_TF[["params_1_1"]], 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+
+#mutate(pval_cat = if_else(alpha_1[,2:6] < 0.05, "p < 0.05", "p >= 0.05"))
+
+# setting up each plot based on alpha and beta parametrization
+a1_b1 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_1, 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1 (uniform)") ) 
+a1_b2 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_2, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
+a1_b10 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_10, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
+a1_b25 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_25, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
+
+a1_b1_rep <- plot_bar(beta_prop_TF, beta_prop_TF$params_10_10, 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 10") )
+a2_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_2_1, 
+                 title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
+a10_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_10_1, 
+                 title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
+a25_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_25_1, 
+                 title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
+
+bayes_beta_barplots <- ggarrange(a1_b1, a1_b1_rep,
+          a1_b2, a2_b1,
+          a1_b10, a10_b1,
+          a1_b25, a25_b1,
+          ncol = 2, nrow = 4,
+          legend = "top", common.legend = TRUE)
+bayes_beta_barplots
+ggsave("../results/bayes_beta_barplots.png")
+```
+Showing above plot as table
+
+```{r}
+alpha_prop_TF %>% group_by(pipe) %>% summarise(sum(params_1_1)/length(params_1_1), sum(params_1_2)/length(params_1_2), sum(params_1_10)/length(params_1_10), sum(params_1_25)/length(params_1_25))
+
+beta_prop_TF %>% group_by(pipe) %>% summarise(sum(params_10_10)/length(params_10_10), sum(params_2_1)/length(params_2_1), sum(params_10_1)/length(params_10_1), sum(params_25_1)/length(params_25_1))
+```
+
+**DESCRIPTION**:
+
+This plot is analagous to the box plot made above where we consider titration-specifc features from subject 1. The x-axis shows the proportion of titration-specific features with a p-value result from bayesian test that is < 0.05 colored by pipeline (red = qiime, green = mothur, blue = dada2). In other words, the x-axis is the proportion of titration-specific features whose abundace could not be explained by sampling error alone. (first paragraph above explains impetus for figure well)
+
+## Calculating abundance of "sparse" features or titration specific features (supplementary table 3)
+
+```{r}
+# calculating number of sparse/ titration specific features
+n_titr_spec_dada2 <- alpha_prop %>% filter(pipe == "dada2") %>% nrow()
+n_titr_spec_mothur <- alpha_prop %>% filter(pipe == "mothur") %>% nrow()
+n_titr_spec_qiime <- alpha_prop %>% filter(pipe == "qiime") %>% nrow()
+
+# calculating number of unmix specific features
+n_unmix_spec_dada2 <- unmix_binom_tidy %>% filter(pipe == "dada2") %>% distinct(feature_id) %>% nrow()
+n_unmix_spec_mothur <- unmix_binom_tidy %>% filter(pipe == "mothur") %>% distinct(feature_id) %>% nrow()
+n_unmix_spec_qiime <- unmix_binom_tidy %>% filter(pipe == "qiime") %>% distinct(feature_id) %>% nrow()
+
+# getting proportions of unexplained unmixed features for table 3
+# NOTE: need to declare `unmix_binom_tidy` from 2019-04-08-Qualitative-Assesment.Rmd
+unmix_binom_tidy %>% 
+      filter(pipe != "unclustered") %>% 
+      mutate(pval_cat = if_else(adj.pvalue < 0.05, "p < 0.05", "p >= 0.05")) %>%
+      group_by(pipe, biosample_id)
+
+supp_table_3 <- data_frame(pipeline = c("DADA2", "Mothur", "QIIME"), 
+                           features = c(3144, 38358, 11385),
+                           "titration-specific (ts)" = c(n_titr_spec_dada2, n_titr_spec_mothur, n_titr_spec_qiime),
+                           "ts unexplained" = c(round(n_titr_spec_dada2*0.65), round(n_titr_spec_mothur*0.005), round(n_titr_spec_qiime*0.0004)),
+                           "unmixed-specific (us)" = c(n_unmix_spec_dada2, n_unmix_spec_mothur, n_unmix_spec_qiime),
+                           "us unexplained" = c(round(n_unmix_spec_dada2*0.19), round(n_unmix_spec_mothur*0.002), round(n_unmix_spec_qiime*0.02)))
+supp_table_3
+```
