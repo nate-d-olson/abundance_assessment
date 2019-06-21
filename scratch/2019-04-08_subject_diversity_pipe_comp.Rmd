@@ -1,0 +1,165 @@
+---
+title: "Subject Pre-Post Community Comparison"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+
+
+```{r samCompSetup, include=FALSE}
+library(tidyverse)
+library(phyloseq)
+library(ggpubr)
+```
+
+```{r}
+fix_post_samples <- function(ps){
+  sam_data <- sample_data(ps) %>% 
+    mutate(biosample_id_fix = case_when(
+                              t_fctr == 0 & biosample_id == "E01JH0004" ~ "E01JH0017", 
+                              t_fctr == 0 & biosample_id == "E01JH0011" ~ "E01JH0004", 
+                              t_fctr == 0 & biosample_id == "E01JH0016" ~ "E01JH0011", 
+                              t_fctr == 0 & biosample_id == "E01JH0017" ~ "E01JH0016", 
+                              TRUE ~ biosample_id
+    ))
+  sample_data(ps)$biosample_id <- sam_data$biosample_id_fix
+  
+  ps
+}
+
+get_pre_post_ps <- function(ps){
+    pre_post_ps <- subset_samples(ps, titration %in% c(20,0)) %>% 
+      {prune_taxa(taxa_sums(.) > 0, .)}
+  sample_data(pre_post_ps)$Titration <- factor(sample_data(pre_post_ps)$t_fctr,
+                                             levels = c(20,0),
+                                             labels = c("PRE", "POST"))
+  sample_data(pre_post_ps)$titration <- factor(sample_data(pre_post_ps)$t_fctr)
+  
+  pre_post_ps
+}
+
+get_titrations_ps <- function(ps){
+  titration_ps <- subset_samples(ps, 
+                                 t_fctr %in% c(20,15,10,5,4,3,2,1,0)) %>% 
+    {prune_taxa(taxa_sums(.) > 0, .)}
+
+  sample_data(titration_ps)$Titration <- factor(sample_data(titration_ps)$t_fctr,
+                                                levels = c(20,15,10,5,4,3,2,1,0))
+  
+  titration_ps
+}
+
+pre_post_alpha_plot <- function(pre_post_ps, pipeline){
+  alpha_plot <- plot_richness(pre_post_ps, 
+              x = "Titration",
+              color = "biosample_id",
+              shape ="Titration", 
+              measures=c("Observed","Chao1", "Shannon")) +
+      theme_bw() +
+      ggtitle(pipeline) + 
+      labs("Subject") +
+      facet_grid(variable~biosample_id, scales = "free") +
+      theme(legend.position = "none") +
+      labs(x = "Titration")
+  return(alpha_plot)
+}
+
+pre_post_beta_plot <- function(pre_post_ps, pipeline){
+  pre_post_ord <- ordinate(pre_post_ps, "PCoA", "bray")
+  beta_plot <- plot_ordination(physeq = pre_post_ps, pre_post_ord, 
+                type = "sample", color = "biosample_id", shape = "Titration") +
+      theme_bw() +
+      ggtitle(pipeline) + 
+      labs(color = "Individual")
+
+  return(beta_plot)
+}
+
+titrations_alpha_plot <- function(titration_ps, pipeline){
+  alpha_plot <- plot_richness(titration_ps, 
+              x = "Titration",
+              color = "Titration",
+              measures=c("Observed","Chao1", "Shannon")) +
+      theme_bw() +
+      ggtitle(pipeline) + 
+      labs("Subject") +
+      facet_grid(variable~biosample_id, scales = "free") +
+      theme(legend.position = "none") +
+      labs(x = "Titration")
+  return(alpha_plot)
+}
+
+titrations_beta_plot <- function(titration_ps, pipeline){
+  titration_ord <- ordinate(titration_ps, "PCoA", "bray")
+  beta_plot <- plot_ordination(physeq = titration_ps, titration_ord, 
+                type = "sample", shape = "biosample_id", color = "Titration") +
+      theme_bw() +
+      ggtitle(pipeline) + 
+      labs(color = "Individual")
+  return(beta_plot)
+}
+```
+
+
+```{r}
+library(tidyverse)
+get_ps <- function() {
+  mrexp_list <- list(
+    dada2 =  "data/dada2_ps.rds",
+    mothur = "data/mothur_ps.rds",
+    qiime =  "data/qiime_ps.rds",
+    unclustered =  "data/unclustered_ps.rds"
+  )  %>%
+    map(readRDS)
+}
+ps_list <- get_ps()
+
+## Pre Post
+pre_post_ps_list <- ps_list %>% map(get_pre_post_ps)
+pre_post_alpha_plots <- map2(pre_post_ps_list, 
+                             names(ps_list), 
+                             pre_post_alpha_plot)
+pre_post_beta_plots <- map2(pre_post_ps_list, 
+                            names(ps_list), 
+                            pre_post_beta_plot)
+
+## Titrations
+titrations_ps_list <- ps_list %>% map(get_titrations_ps)
+titrations_alpha_plots <- map2(titrations_ps_list, 
+                             names(ps_list), 
+                             titrations_alpha_plot)
+titrations_beta_plots <- map2(titrations_ps_list, 
+                            names(ps_list), 
+                            titrations_beta_plot)
+```
+
+
+## Combined Plots
+```{r fig.height = 6, fig.width = 6}
+ggarrange(plotlist = c(pre_post_alpha_plots, pre_post_beta_plots), 
+          ncol = 3, nrow = 2)
+ggsave("pre_post_div_pipe_comp.pdf", height = 500,units = "mm")
+```
+```{r}
+ggarrange(plotlist = c(titrations_alpha_plots), 
+          ncol = 1, nrow = 3)
+ggsave("titrations_alpha_div_pipe_comp.pdf", height = 500,units = "mm")
+```
+
+```{r}
+ggarrange(plotlist = c(titrations_beta_plots), 
+          ncol = 1, nrow = 3, common.legend = TRUE)
+ggsave("titrations_beta_div_pipe_comp.pdf", height = 500,units = "mm",)
+```
+
+
+# Session information
+```{r}
+# s_info <- devtools::session_info()
+# print(s_info$platform)
+# s_info$packages %>% filter(`*` == "*") %>% select(-`*`) %>% 
+#       knitr::kable()
+```
