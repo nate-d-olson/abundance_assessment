@@ -1,0 +1,134 @@
+---
+title: "logFC Error Metrics Post Features"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2: 
+    toc: FALSE
+---
+
+```{r logFC_setup, include=FALSE}
+library(tidyverse)
+library(stringr)
+library(broom)
+```
+
+## Objective 
+Generate data frames for log fold-change assessment. 
+
+__Data frames__  
+
+* `logFC_post` - log fold-change estimates and expected values for pre-specific and pre-dominant features. 
+* `logFC_feature_summary` - feature-level linear model fit summary
+
+
+```{r loadData}
+## Excluding unclustered
+### Loading Data ---------------------------------------------------------------
+pa_summary_df <- readRDS("data/pa_summary_anno_df.RDS") %>% 
+      select(pipe, biosample_id, feature_id, 
+             T00, T20, pa_mixed)  #%>% 
+      # filter(biosample_id %in% paste0("E01JH00", c("04","11","16")))
+      
+
+logFC_df <- readRDS("data/logFC_edgeR_df.rds") %>%
+      # filter(biosample_id %in% paste0("E01JH00", c("04","11","16"))) %>% 
+      rename(feature_id = OTUname) 
+
+## Combining logFC estimates
+logFC_df <- readRDS("data/logFC_nb_df.rds") %>% 
+      rename(nb_logFC = logFC) %>% 
+      right_join(logFC_df)
+
+## Fixing taxonomy for consistency across pipelines
+logFC_df <- logFC_df %>% 
+      mutate(Rank2 = str_replace(Rank2, "p__",""),
+             Rank3 = str_replace(Rank3, "c__",""),
+             Rank4 = str_replace(Rank4, "o__",""),
+             Rank5 = str_replace(Rank5, "f__",""),
+             Rank6 = str_replace(Rank6, "g__",""),
+             Rank7 = str_replace(Rank7, "s__","")) %>% 
+      left_join(pa_summary_df)
+```
+
+```{r processData, include = FALSE}
+### Extracting pre-specific and dominant features ------------------------------
+logFC_prepost <- logFC_df %>% 
+      filter(T1 == 0, T2 == 20)
+
+logFC_post <- logFC_prepost %>% 
+      filter(logFC < -5, T00 == 4) %>% 
+      group_by(biosample_id) %>% 
+      rename(prepost_logFC = logFC, prepost_logCPM = logCPM,
+             pre_nb = T2_nb, post_nb = T1_nb,
+             prepost_nb_logFC = nb_logFC) %>% 
+      ungroup() %>% 
+      select(-T1, -T2, -PValue, -FDR) %>% 
+      left_join(logFC_df)
+
+### Calculate Expected logFC --------------------------------------------------- 
+#Function for coverting numeric factors to their numeric values
+as_numeric_fctr <- function(x) as.numeric(as.character(x))
+
+logFC_post <- logFC_post %>% 
+      mutate(T1_postprop = 2^-as_numeric_fctr(T1), 
+             T2_postprop = 2^-as_numeric_fctr(T2),
+            exp_logFC = as_numeric_fctr(T1) - as_numeric_fctr(T2)) %>% 
+      select(-T1_postprop, -T2_postprop)
+
+## Removing large data-frames that are no longer needed ------------------------
+# rm(logFC_df)
+# rm(pa_summary_df)
+# rm(logFC_prepost)
+```
+
+
+## log fold-change error metrics 
+The slope estimate and R^2^ for feature level linear models of the expected and estimated log fold-change. The bias metric is 1-slope estimate and the model R^2^ value is the variance metric.
+
+```{r}
+## Fitting a linear model to individual features
+logFC_feature_fit <- logFC_post %>% 
+      filter(T1 != 0, T2 != 20) %>% 
+      select(pipe, biosample_id, feature_id, exp_logFC, logFC, nb_logFC) %>%
+      rename(edgeR = logFC) %>% 
+      gather("logFC_est","logFC", 
+             -pipe, -biosample_id, -feature_id, -exp_logFC) %>%
+      group_by(pipe, biosample_id, feature_id, logFC_est) %>% 
+      nest() %>% 
+      mutate(data = map(data, filter, 
+                        ## Excluding comparisons where logFC estimates are undefined for Inf 
+                        ## this is for negative binomial logFC estimates
+                        !is.na(logFC), logFC != Inf, logFC != -Inf)) %>% 
+      ## LM fit for negative binomials logFC estimates fail
+      ## Filtering for now
+      filter(logFC_est == "edgeR") %>% 
+      mutate(fit = map(data, ~lm(logFC ~ exp_logFC, data = .)))
+
+logFC_feature_glance <- logFC_feature_fit %>% 
+      mutate(fit_glance = map(fit, glance)) %>% 
+      select(-data, -fit) %>% 
+      unnest()
+
+logFC_feature_tidy <- logFC_feature_fit %>% 
+      mutate(fit_glance = map(fit, tidy)) %>% 
+      select(-data, -fit) %>% 
+      unnest()
+
+logFC_feature_slope <- logFC_feature_tidy %>% 
+      filter(term == "exp_logFC") %>% 
+      select(-term) %>% 
+      rename(slope = estimate)
+
+logFC_feature_summary <- logFC_feature_slope %>% 
+      select(-statistic, -p.value) %>% 
+      left_join(logFC_feature_glance)
+```
+
+
+
+## Saving data frames
+```{r}
+saveRDS(logFC_post, "data/logFC_post.RDS")
+saveRDS(logFC_feature_summary, "data/logFC_post_feature_summary.RDS")
+```
