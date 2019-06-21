@@ -116,8 +116,6 @@ unmix_binom_test <- function(unmix_count_df, output_file){
     return(unmix_binom_tidy)
 }
 
-## Removing unclustered - for now ...
-unmix_count_df <- unmix_count_df %>% filter(pipe != "unclustered")
 unmix_binom_tidy <- unmix_binom_test(unmix_count_df, unmix_file)
 ```
 
@@ -188,8 +186,6 @@ mix_binom_bayes <- function(count_df, mix_count_df, output_file){
       mix_binom_test_df
 }
 
-mix_count_df <- mix_count_df %>% filter(pipe != "unclustered")
-count_df <- count_df %>% filter(pipe != "unclustered")
 mix_binom_tidy <- mix_binom_bayes(count_df, mix_count_df, mix_file)
 ```
 

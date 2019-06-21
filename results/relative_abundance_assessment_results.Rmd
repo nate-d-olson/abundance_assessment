@@ -34,9 +34,7 @@ pre_post_prop <- nb_counts %>%
     spread(end_point,nb_prop, fill = 0)
 
 prop_inferred <- theta_est %>%
-    # filter(pipe == "unclustered") %>%
-    ## Using mothur until we have unclustered estimates
-    filter(pipe == "mothur") %>%
+    filter(pipe == "unclustered") %>%
     ungroup() %>%
     mutate(t_fctr = factor(t_fctr, levels = c(0:5, 10, 15, 20))) %>%
     dplyr::select(biosample_id, theta_hat_mean, t_fctr) %>%
@@ -45,10 +43,12 @@ prop_inferred <- theta_est %>%
     ## Using inferred theta estimates to calculate expected values
     mutate(inferred_prop = post * theta_hat_mean + pre * (1 - theta_hat_mean))
 
-## Excluding mix and unmix specific features
-## Only including features observed in all or none of the four pre- post- PCR replicates
-## Features with relative abundance estimates and expected values less than 1e-5, these are features that we would not expect to consistently observe in a PCR replicate for the given sequencing depth, ~100k
-## Excluding titrations where the inferred theta values are less than 1
+## Excluding mix and unmix specific features Only including features observed in
+## all or none of the four pre- post- PCR replicates Features with relative
+## abundance estimates and expected values less than 1e-5, these are features
+## that we would not expect to consistently observe in a PCR replicate for the
+## given sequencing depth, ~100k Excluding titrations where the inferred theta
+## values are less than 1
 pa_filter <- pa_summary_anno_df %>%
     filter(pa_specific == "unspecific") %>%
     dplyr::select(biosample_id, pipe, feature_id, full_pre, T00, T20, pa_mixed) %>%
@@ -178,21 +178,15 @@ relAbuErrorDist <- rel_abu_error %>%
     labs(x = "Error Rate", y = "Pipeline", color = "Pipeline") +
     scale_x_log10()
 
-# ggsave(relAbuOvE, "~/Desktop/quant_exp_vs_obs.png", dpi = 450)
-
 ## Median Error Pipeline Comparison
 ymin <- ggplot_build(error_boxplot)$data[[1]]$ymin %>% min()
 ymax <- ggplot_build(error_boxplot)$data[[1]]$ymax %>% max()
 error_boxplot <- error_boxplot + coord_cartesian(ylim = c(ymin, ymax))
 
-# ggsave(error_boxplot, "~/Desktop/quant_bias.png", dpi = 450)
-
 ## RCOV Error Pipeline Comparison
 ymin <- ggplot_build(rcov_boxplot)$data[[1]]$ymin %>% min()
 ymax <- ggplot_build(rcov_boxplot)$data[[1]]$ymax %>% max()
 rcov_boxplot <- rcov_boxplot + coord_cartesian(ylim = c(ymin, ymax))
-
-# ggsave(rcov_boxplot, "~/Desktop/quant_variance.png", dpi = 450)
 ```
 
 
@@ -283,7 +277,7 @@ ggarrange(relAbuOvE,
 ```
 
 ```{r}
-ggsave("~/Projects/MGTST-Manuscript/relAbuError-1.pdf",width = 170, units = "mm")
+ggsave("figs/relAbuError-1.pdf",width = 170, units = "mm")
 ```
 
 
@@ -332,7 +326,7 @@ ggarrange(error_boxplot + rremove("x.text") + rremove("xlab"),
 ```
 
 ```{r}
-ggsave("~/Projects/MGTST-Manuscript/relAbuErrorMetrics-1.pdf",width = 170, units = "mm")
+ggsave("figs/relAbuErrorMetrics-1.pdf",width = 170, units = "mm")
 ```
 
 ```{r relAbuErrorTbl, echo = FALSE, warning = FALSE, message = FALSE}
@@ -345,13 +339,12 @@ rel_abu_error_summary %>%
                 min_rcov_error = min(rcov_error),
                 max_rcov_error = max(rcov_error)) %>%
       ## Value ranges
-      # mutate(Median = paste0(round(med_med_error,2), " (",
-      #                        round(max_med_error,2), "-",
-      #                        round(min_med_error,2),")"),
-      #        RCOV = paste0(round(med_rcov_error,2), " (",
-      #                      round(max_rcov_error,2), "-",
-      #                      round(min_rcov_error,2),")")) %>%
-      # Max values only
+      mutate(Median = paste0(round(med_med_error,2), " (",
+                             round(max_med_error,2), "-",
+                             round(min_med_error,2),")"),
+             RCOV = paste0(round(med_rcov_error,2), " (",
+                           round(max_rcov_error,2), "-",
+                           round(min_rcov_error,2),")")) %>%
       mutate(Bias = max_med_error, Variance = max_rcov_error) %>%
      dplyr::select(pipe, biosample_id, Bias, Variance) %>%
       ungroup() %>% 
@@ -365,7 +358,7 @@ rel_abu_error_summary %>%
       spread(Individual, value) %>%
       arrange(Metric) %>%
      dplyr::select(Metric, Pipeline, E01JH0004, E01JH0011, E01JH0016, E01JH0017, E01JH0038) %>%
-      knitr::kable(booktabs = TRUE, caption = "Maximum feature-level error rate bias (median error rate) and variance (robust COV) by pipeline and individual.", digits = 2) %>%
+      knitr::kable(booktabs = TRUE, caption = "Median and range of feature-level error rate bias (median error rate) and variance (robust COV) by pipeline and individual.", digits = 2) %>%
       collapse_rows(columns = 1) %>%
     kable_styling(latex_options = c("scale_down"))
 ```
@@ -382,15 +375,22 @@ There is lower confidence in PRE or POST feature relative abundance when the fea
 Overall, agreement between inferred and observed relative abundance was high for all individuals and bioinformatic pipelines (Fig. \@ref(fig:relAbuError)A).
 The error rate distribution was similarly consistent across pipelines, including long tails (Fig. \@ref(fig:relAbuError)B)
 
+<!-- TODO RECHARACTERIZE OUTLINERS -->
 To assess quantitative accuracy, we compared the feature-level relative abundance error rate bias (median error rate, Fig. \@ref(fig:relAbuErrorMetrics)A) and variance ($RCOV=(IQR)/|median|$ Fig. \@ref(fig:relAbuErrorMetrics)B) across pipelines and individuals using mixed effects models.
-Large bias and variance metric values were observed for all pipelines (Table  \@ref(tab:relAbuErrorTbl)).
-Features with large bias and variance metrics, $1.5\times IQR$ from the median, were deemed outliers.
+
 To prevent these outlier features from biasing the comparison they were not used to fit the mixed effects model.
 Multiple comparisons test (Tukey) was used to test for significant differences in feature-level bias and variance between pipelines.
 A one-sided alternative hypothesis was used to determine which pipelines had smaller feature-level error rate.
-The Mothur, DADA2, and QIIME feature-level bias were all significantly different from each other ($p < 1\times 10^{-8}$).
-DADA2 had the lowest mean feature-level bias (`r round(dada_error,2)`), followed by Mothur (`r round(mothur_error,2)`), with QIIME having the highest bias (`r round(qiime_error,2)`) (\@ref(fig:relAbuErrorMetrics)B).
-Large variance metric values were observed for all individuals and pipelines (Table \@ref(tab:relAbuErrorTbl)).
-The feature-level variance was not significantly different between pipelines, Mothur = `r round(mothur_rcov,2)`, QIIME = `r round(qiime_rcov,2) ` and DADA2 = `r round(dada_rcov)` (Fig. \@ref(fig:relAbuErrorMetrics)B).
-We evaluated whether poor feature-level relative abundance metrics can be attributed to specific taxonomic groups or phylogenetic clades.
-While a significant overall phylogenetic signal was detected for both the bias and variance metric, no specific taxonomic groups or phylogenetic clades were identified with exceptionally poor performance in our assessment.
+
+__Mean feature-level bias  (\@ref(fig:relAbuErrorMetrics)B)__
+
+- DADA2 = (`r round(dada_error,2)`)  
+- Mothur = (`r round(mothur_error,2)`)
+- QIIME = (`r round(qiime_error,2)`).
+
+__feature-level variance (Fig. \@ref(fig:relAbuErrorMetrics)B)__  
+
+- Mothur = `r round(mothur_rcov,2)`  
+- QIIME = `r round(qiime_rcov,2)`   
+- DADA2 = `r round(dada_rcov)`  
+

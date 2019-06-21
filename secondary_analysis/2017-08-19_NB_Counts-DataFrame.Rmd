@@ -158,7 +158,7 @@ calc_nb_prop <- function(count_df, fit_file, prop_file, fit_level = "feature"){
             ## fit due to no observed counts.
             nb_counts <- nb_fit_results %>% 
                   filter(ok_model == TRUE) %>% 
-                  mutate(data = future_map(data, mutate, `offset(log(total_abu)))` = offset(log(total_abu)))) %>% 
+                  mutate(data = map(data, mutate, `offset(log(total_abu)))` = offset(log(total_abu)))) %>% 
                   mutate(data = future_map2(data, result, add_predictions)) %>%
                   dplyr::select(-result, -error, -ok_model) %>%
                   unnest() %>% 
@@ -190,10 +190,10 @@ nb_counts_file <- "data/nb_counts_titrations.RDS"
 if(file.exists(nb_counts_file)){
       nb_counts <- readRDS(nb_counts_file)
 }else{
-      # unclustered_nb <- calc_nb_prop(count_df %>% filter(pipe == "unclustered"),
-      #                          fit_file = paste0("data/nb_fit_","unclustered","_titration.RDS"),
-      #                          prop_file = paste0("data/nb_counts_","unclustered","_titration.RDS"),
-      #                          fit_level = "titration")    
+      unclustered_nb <- calc_nb_prop(count_df %>% filter(pipe == "unclustered"),
+                               fit_file = paste0("data/nb_fit_","unclustered","_titration.RDS"),
+                               prop_file = paste0("data/nb_counts_","unclustered","_titration.RDS"),
+                               fit_level = "titration")
   
       gc()
       dada_nb <- calc_nb_prop(count_df %>% filter(pipe == "dada2"),
@@ -211,9 +211,9 @@ if(file.exists(nb_counts_file)){
                                 prop_file = paste0("data/nb_counts_","mothur","_titration.RDS"),
                                 fit_level = "titration")
       gc()
-      # nb_counts <- bind_rows(dada_nb, qiime_nb, mothur_nb, unclustered_nb)
-      nb_counts <- bind_rows(dada_nb, qiime_nb, mothur_nb)
-      saveRDS(nb_counts, "data/nb_counts_titrations.RDS")
+
+      nb_counts <- bind_rows(dada_nb, qiime_nb, mothur_nb, unclustered_nb)
+      saveRDS(nb_counts, "data/nb_counts_titrations_full.RDS")
 }
 ```
 

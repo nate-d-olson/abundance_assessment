@@ -1,38 +1,36 @@
 ---
 title: "Qualitative Assessment (part 2)"
 author: "Domenick J. Braccia"
-date: `r Sys.Date()`
+date: '`r Sys.Date()`'
 output:
   bookdown::pdf_document2: 
     toc: FALSE
 ---
 
 
+
 # Contents
 
-The contents of this document are as follows:
+1. Unmixed-specific feature analyses: redo binomial test for unmixed-specific features w 97.5% confidence interval
+2. Titration-specific analyses: Replace uniform prior with beta prior and iterate, summarize results in plot (see new-figures rmd doc)
+3. Calculate sparsity at the individual level
 
-1. Unmixed-specific feature analyses
-      [X] redo binomial test for unmixed-specific features w 97.5% confidence interval
-     
-2. Titration-specific analyses 
-      [X] Replace uniform prior with beta prior and iterate
-      [X] summarize results in plot (see new-figures rmd doc)
-
-3. sparsity
-      [X] Calculate sparsity at the individual level
-
-most of what is contained in points 2 and 3 show up in supplementary material
 # Loading libraries, data, and tidying 
 
 ```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(broom)
 library(ggpubr)
-raw_counts <- readRDS("../data/raw_counts.RDS")
-nb_counts <- readRDS("../data/nb_counts_titrations.RDS") # where does this come from?
-pa_summary_anno_df <- readRDS("../data/pa_summary_anno_df.RDS")
-theta_est <- readRDS("../data/bootstrap_theta_estimates.RDS")
+
+
+## Initiating parallelization 
+library(furrr)
+plan(multiprocess)
+
+raw_counts <- readRDS("data/raw_counts.RDS")
+nb_counts <- readRDS("data/nb_counts_titrations.RDS") # where does this come from?
+pa_summary_anno_df <- readRDS("data/pa_summary_anno_df.RDS")
+theta_est <- readRDS("data/bootstrap_theta_estimates.RDS")
 ```
 
 ```{r qual_tidy, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
@@ -104,7 +102,7 @@ unmix_binom_test <- function(unmix_count_df, output_file, confidence){
     if(file.exists(output_file)){
         return(readRDS(output_file))
     } else {
-        print("could not find results file in '../data' ... running code now")
+        print("could not find results file in 'data' ... running code now")
     }
     ## Binomial test - Is the true proportion of a feature within a mixture less
     ## than the inferred proportion assuming no observed counts for a titration
@@ -113,8 +111,8 @@ unmix_binom_test <- function(unmix_count_df, output_file, confidence){
     unmix_binom_test_df <- unmix_count_df %>%
         group_by(pipe, biosample_id, id, feature_id, t_fctr) %>%
         nest() %>%                                                
-        mutate(binom_test = map(data, ~with(., binom.test(x = 0,  
-                                                          n =  , 
+        mutate(binom_test = future_map(data, ~with(., binom.test(x = 0,  
+                                                          n = total_count , 
                                                           p = inferred_prop, 
                                                           alternative = "less",
                                                           conf.level = confidence))),
@@ -136,8 +134,8 @@ unmix_binom_test <- function(unmix_count_df, output_file, confidence){
 seperating by pipeline & comparing one tailed vs two tailed p-value distributions
 
 ```{r}
-unmix_binom_0.95 <- unmix_binom_test(unmix_count_df, output_file = "../data/unmix_binom_test_0.95", confidence = 0.95)
-unmix_binom_0.975 <- unmix_binom_test(unmix_count_df, output_file = "../data/unmix_binom_0.975.RDS", confidence = 0.975)
+unmix_binom_0.95 <- unmix_binom_test(unmix_count_df, output_file = "data/unmix_binom_test_0.95.RDS", confidence = 0.95)
+unmix_binom_0.975 <- unmix_binom_test(unmix_count_df, output_file = "data/unmix_binom_0.975.RDS", confidence = 0.975)
 ```
 
 ## 2. Titration specific analyses
@@ -199,7 +197,6 @@ mix_binom_bayes <- function(count_df, mix_count_df, output_file, ALPHA, BETA){
       mix_binom_test_df <- mix_count %>% left_join(mix_binom_test)
       mix_binom_test_df$adj.pvalue <- p.adjust(mix_binom_test_df$bayes_test, method = "BH") 
       saveRDS(mix_binom_test_df, output_file)
-      #mix_binom_test_df
 }
 ```
 
@@ -228,7 +225,7 @@ Beta_values <- c(1, 2, 10, 25)
 
 for (A in Alpha_values) {
       for (B in Beta_values) {
-            output_file <- paste("../data/mix_bayes_res/test", "_", A, "_", B, ".RDS", sep = "")
+            output_file <- paste("data/mix_bayes_res/test", "_", A, "_", B, ".RDS", sep = "")
             print(output_file)
             mix_binom_bayes(count_df, mix_count_df, output_file = output_file, ALPHA = A, BETA = B)
       }
