@@ -16,19 +16,20 @@ library(ggpubr)
 ```
 
 ```{r}
-fix_post_samples <- function(ps){
-  sam_data <- sample_data(ps) %>% 
-    mutate(biosample_id_fix = case_when(
-                              t_fctr == 0 & biosample_id == "E01JH0004" ~ "E01JH0017", 
-                              t_fctr == 0 & biosample_id == "E01JH0011" ~ "E01JH0004", 
-                              t_fctr == 0 & biosample_id == "E01JH0016" ~ "E01JH0011", 
-                              t_fctr == 0 & biosample_id == "E01JH0017" ~ "E01JH0016", 
-                              TRUE ~ biosample_id
-    ))
-  sample_data(ps)$biosample_id <- sam_data$biosample_id_fix
-  
-  ps
-}
+## Implemented already
+# fix_post_samples <- function(ps){
+#   sam_data <- sample_data(ps) %>% 
+#     mutate(biosample_id_fix = case_when(
+#                               t_fctr == 0 & biosample_id == "E01JH0004" ~ "E01JH0017", 
+#                               t_fctr == 0 & biosample_id == "E01JH0011" ~ "E01JH0004", 
+#                               t_fctr == 0 & biosample_id == "E01JH0016" ~ "E01JH0011", 
+#                               t_fctr == 0 & biosample_id == "E01JH0017" ~ "E01JH0016", 
+#                               TRUE ~ biosample_id
+#     ))
+#   sample_data(ps)$biosample_id <- sam_data$biosample_id_fix
+#   
+#   ps
+# }
 
 get_pre_post_ps <- function(ps){
     pre_post_ps <- subset_samples(ps, titration %in% c(20,0)) %>% 
@@ -105,7 +106,6 @@ titrations_beta_plot <- function(titration_ps, pipeline){
 
 
 ```{r}
-library(tidyverse)
 get_ps <- function() {
   mrexp_list <- list(
     dada2 =  "data/dada2_ps.rds",
@@ -155,6 +155,51 @@ ggarrange(plotlist = c(titrations_beta_plots),
 ggsave("titrations_beta_div_pipe_comp.pdf", height = 500,units = "mm",)
 ```
 
+## Outlier Samples
+```{r}
+titration_ps <- titrations_ps_list$dada2
+titration_ord <- ordinate(titration_ps, "PCoA", "bray")
+plot_ordination(physeq = titration_ps, titration_ord, label = "id",
+              type = "sample", shape = "biosample_id", color = "Titration") +
+    theme_bw() +
+    ggtitle("DADA2") + 
+    labs(color = "Individual")
+```
+
+```{r}
+sample_data(titration_ps) %>% 
+  filter(id %in% c("1-F9", "1-C1")) 
+```
+Getting full sample set for comparison
+```{r}
+E4T2_samps <- sample_data(titration_ps) %>% 
+  filter(biosample_id == "E01JH0004", titration == 2) 
+E16T5 <- sample_data(titration_ps) %>% 
+  filter(biosample_id == "E01JH0016", titration == 5) 
+
+samps <- c(E4T2_samps$id, E16T5$id) %>% 
+  str_replace("-", ".") %>% paste0("X", .)
+```
+
+```{r}
+samps
+```
+
+
+```{r}
+alpha_div_df <- phyloseq::estimate_richness(titration_ps)
+alpha_div_df %>% rownames_to_column() %>% 
+  filter(rowname %in%samps)
+```
+
+1-F9 has half the observed features as the next lowest abundance sample.
+```{r}
+ggplot(alpha_div_df) + geom_histogram(aes(x = Observed))
+```
+
+```{r}
+summary(alpha_div_df$Observed)
+```
 
 # Session information
 ```{r}
