@@ -198,7 +198,16 @@ ggplot(alpha_div_df) + geom_histogram(aes(x = Observed))
 ```
 
 ```{r}
-summary(alpha_div_df$Observed)
+samp_df <- sample_data(titration_ps) %>% data.frame()
+
+alpha_div_df %>% 
+  rownames_to_column(var = "id") %>% 
+  mutate(id = str_remove(id, "X"),
+         id = str_replace(id, "\\.", "-")) %>% 
+  right_join(samp_df) %>% 
+  group_by(biosample_id) %>% 
+  summarise(median_obs = median(Observed),
+            min_obs = min(Observed))
 ```
 
 # Session information
