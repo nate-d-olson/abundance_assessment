@@ -16,12 +16,12 @@ Contributing to the figures for mgtst-pub
 ## Getting & tidying data
 
 ```{r get data, message=FALSE, warning=FALSE}
-test_1_1 <- readRDS("../data/mix_bayes_res/test_01_01.RDS")
-test_files <- list.files("../data/mix_bayes_res/")
-all_tests <- data.frame(vector("numeric", 15935))
+test_1_1 <- readRDS("../data/mix_bayes_res/corrected/test_01_01.RDS")
+test_files <- list.files("../data/mix_bayes_res/corrected")
+all_tests <- data.frame(vector("numeric", 14380))
 for ( i in 1:length(test_files) ) {
       # loading in data into one data frame
-      current <- readRDS(paste("../data/mix_bayes_res/", test_files[i], sep = "")) %>% 
+      current <- readRDS(paste("../data/mix_bayes_res/corrected/", test_files[i], sep = "")) %>% 
             filter(biosample_id == "E01JH0004") # only making figure for 1 subject to illustate point
       if (i == 1) {
             all_tests[, i] <- current$pipe
@@ -38,9 +38,11 @@ all_tests$pipe <- as.factor(all_tests$pipe)
 
 
 
-alpha_1 <- select(all_tests, 1:6)
+alpha_1 <- select(all_tests, pipe, params_01_01, params_01_02, params_01_10, 
+                  params_01_25)
 alpha_1_log <- cbind(pipe = alpha_1[, 1], -log10(alpha_1[, -1]))
-beta_1 <- select(all_tests, 1, 2, 7, 12, 17, 22)
+beta_1 <- select(all_tests, pipe, params_10_10, params_02_01, params_10_01, 
+                  params_25_01)
 beta_1_log <- cbind(pipe = beta_1[, 1], -log10(beta_1[, -1]))
 ```
 
@@ -120,6 +122,43 @@ plot_bar <- function(df, column, title){
             labs(title = title)
 }
 ```
+## NEW barplot function
+```{r}
+#getting from `alpha_prop` to `alpha_bar_plot`
+alpha_bar_plot <- data.frame(pipe = c("dada2", "mothur", "qiime"), 
+                 p1 = c(0.6, 0.1, 0.01))
+alpha_1 %>% 
+   select(pipe, params_01_01) %>%
+   group_by(pipe) %>%
+   summarise(prop = sum(params_01_01 <= 0.05) / length(params_01_01))
+   
+
+# plotting the newly created dataframes
+p <- ggplot(data = alpha_bar_plot, aes(x = pipe, y = p1, fill = pipe)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = p1), vjust = -0.3, size = 3.5) +
+  theme_minimal()
+p
+
+## new plot bar function which processes data properly before making plot
+plot_bar2 <- function(df, column) {
+   # data processing
+   current_df <- df[, c("pipe", column)] #correct!
+   
+   current_df[, 2] <- if_else(current_df[, 2] < 0.05, 1, 0)
+   current_plot <- current_df %>% 
+      group_by(pipe) %>%
+      summarise_at(.vars = column, .funs = mean) # success!
+   current_plot
+   
+   # plotting
+   ggplot(data = current_plot, aes(x = pipe, y = current_plot[[column]], fill = pipe)) +
+      geom_bar(stat = "identity") + 
+      geom_text(aes(label = round(current_plot[[column]], 3)), vjust = -0.3, size = 3.5) 
+      #add y-axis and title similar to last plot
+}
+```
+
 
 ## Making and arranging bar plots
 
@@ -128,7 +167,7 @@ plot_bar <- function(df, column, title){
 ## re-formatting alpha=1 data
 alpha_prop <- if_else((alpha_1 %>% as_tibble() %>%
                   select("params_01_01", "params_01_02", "params_01_10", "params_01_25") ) < 0.05, 
-                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 14380, ncol = 5) %>% as_tibble() %>%
                   cbind(alpha_1$pipe)
 
 # re-ordering and re-naming columns 
@@ -145,20 +184,20 @@ alpha_prop_TF_plot <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_01"]],
 
 ## re-formatting beta=1
 beta_prop <- if_else((beta_1 %>% as_tibble() %>%
-                  select("params_01_01", "params_02_01", "params_10_01", "params_25_01") ) < 0.05, 
-                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  select("params_10_10", "params_02_01", "params_10_01", "params_25_01") ) < 0.05, 
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 14380, ncol = 5) %>% as_tibble() %>%
                   cbind(beta_1$pipe)
 
 # re-ordering and re-naming columns 
 beta_prop <- beta_prop[, c(6,1,2,3,4)]
-colnames(beta_prop) <- c("pipe", "params_01_01", "params_02_01", "params_10_01", "params_25_01")
+colnames(beta_prop) <- c("pipe", "params_10_10", "params_02_01", "params_10_01", "params_25_01")
 
 # re-doing df with TRUE/FALSE for p-value < & >= 0.05
 beta_prop_TF <- (beta_prop[,2:5] == "p < 0.05") %>%
       as.data.frame()
 beta_prop_TF$pipe <- beta_prop$pipe
 
-beta_prop_TF_plot <- plot_bar(beta_prop_TF, beta_prop_TF[["params_01_01"]], 
+beta_prop_TF_plot <- plot_bar(beta_prop_TF, beta_prop_TF[["params_10_10"]], 
                  title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
 
 #mutate(pval_cat = if_else(alpha_1[,2:6] < 0.05, "p < 0.05", "p >= 0.05"))
@@ -173,7 +212,7 @@ a1_b10 <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_10"]],
 a1_b25 <- plot_bar(alpha_prop_TF, alpha_prop_TF[["params_01_25"]], 
                  title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
 
-a1_b1_rep <- plot_bar(alpha_prop, alpha_prop_TF[["params_01_01"]], 
+a10_b10 <- plot_bar(beta_prop, beta_prop_TF[["params_10_10"]], 
                  title = paste(expression(alpha), " = ", expression(beta), " = 1 (uniform)") )
 a2_b1 <- plot_bar(beta_prop_TF, beta_prop_TF[["params_02_01"]], 
                  title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
@@ -182,12 +221,12 @@ a10_b1 <- plot_bar(beta_prop_TF, beta_prop_TF[["params_10_01"]],
 a25_b1 <- plot_bar(beta_prop_TF, beta_prop_TF[["params_25_01"]], 
                  title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
 
-# ggarrange(a1_b1, a1_b1_rep,
-#           a1_b2, a2_b1,
-#           a1_b10, a10_b1,
-#           a1_b25, a25_b1,
-#           ncol = 2, nrow = 4,
-#           legend = "top")
+ggarrange(a1_b1, a10_b10,
+          a1_b2, a2_b1,
+          a1_b10, a10_b1,
+          a1_b25, a25_b1,
+          ncol = 2, nrow = 4,
+          legend = "top")
 a1_b1
 ```
 
