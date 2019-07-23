@@ -18,9 +18,9 @@ library(forcats)
 library(stringr)
 library(ggpubr)
 library(ggridges)
-nb_counts <- readRDS("data/nb_counts_titrations.RDS")
-pa_summary_anno_df <- readRDS("data/pa_summary_anno_df.RDS")
-theta_est <- readRDS("data/bootstrap_theta_estimates.rds")
+nb_counts <- readRDS("../data/nb_counts_titrations.RDS")
+pa_summary_anno_df <- readRDS("../data/pa_summary_anno_df.RDS")
+theta_est <- readRDS("../data/bootstrap_theta_estimates.rds")
 ```
 
 ```{r relAbuMunge, echo = FALSE, message = FALSE, warning = FALSE}
@@ -65,7 +65,7 @@ prop_inferred <- prop_inferred %>%
            theta_hat_mean > 0)
 
 ## Save for supplemental table
-saveRDS(prop_inferred, "data/prop_inferred.RDS")
+saveRDS(prop_inferred, "../data/prop_inferred.RDS")
 
 
 #### Error Rate Calculations
@@ -84,8 +84,8 @@ rel_abu_error_summary <-  rel_abu_error %>%
               var_error = var(inferred_error_rate),
               cov_error = var_error/mean_error)
 
-saveRDS(rel_abu_error, "data/rel_abu_error.RDS")
-saveRDS(rel_abu_error_summary, "data/rel_abu_error_summary.RDS")
+saveRDS(rel_abu_error, "../data/rel_abu_error.RDS")
+saveRDS(rel_abu_error_summary, "../data/rel_abu_error_summary.RDS")
 
 ### Error rate boxplot and outlier annotation
 error_boxplot <- rel_abu_error %>% group_by(pipe, biosample_id, feature_id) %>%
@@ -277,7 +277,7 @@ ggarrange(relAbuOvE,
 ```
 
 ```{r}
-ggsave("figs/relAbuError-1.pdf",width = 170, units = "mm")
+ggsave("../figs/relAbuError-1.pdf",width = 170, units = "mm")
 ```
 
 
@@ -326,7 +326,7 @@ ggarrange(error_boxplot + rremove("x.text") + rremove("xlab"),
 ```
 
 ```{r}
-ggsave("figs/relAbuErrorMetrics-1.pdf",width = 170, units = "mm")
+ggsave("../figs/relAbuErrorMetrics-1.pdf",width = 170, units = "mm")
 ```
 
 ```{r relAbuErrorTbl, echo = FALSE, warning = FALSE, message = FALSE}
