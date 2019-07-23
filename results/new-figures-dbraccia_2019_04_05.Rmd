@@ -11,6 +11,8 @@ library(tidyverse)
 library(ggpubr)
 ```
 
+**NOTE: This file will not knit due to aesthetic issues when making bar plots below. please see the new, updated .Rmd with date 2019-07-23 or later.**
+
 Contributing to the figures for mgtst-pub
 
 ## Getting & tidying data
@@ -122,43 +124,6 @@ plot_bar <- function(df, column, title){
             labs(title = title)
 }
 ```
-## NEW barplot function
-```{r}
-#getting from `alpha_prop` to `alpha_bar_plot`
-alpha_bar_plot <- data.frame(pipe = c("dada2", "mothur", "qiime"), 
-                 p1 = c(0.6, 0.1, 0.01))
-alpha_1 %>% 
-   select(pipe, params_01_01) %>%
-   group_by(pipe) %>%
-   summarise(prop = sum(params_01_01 <= 0.05) / length(params_01_01))
-   
-
-# plotting the newly created dataframes
-p <- ggplot(data = alpha_bar_plot, aes(x = pipe, y = p1, fill = pipe)) +
-  geom_bar(stat = "identity") +
-  geom_text(aes(label = p1), vjust = -0.3, size = 3.5) +
-  theme_minimal()
-p
-
-## new plot bar function which processes data properly before making plot
-plot_bar2 <- function(df, column) {
-   # data processing
-   current_df <- df[, c("pipe", column)] #correct!
-   
-   current_df[, 2] <- if_else(current_df[, 2] < 0.05, 1, 0)
-   current_plot <- current_df %>% 
-      group_by(pipe) %>%
-      summarise_at(.vars = column, .funs = mean) # success!
-   current_plot
-   
-   # plotting
-   ggplot(data = current_plot, aes(x = pipe, y = current_plot[[column]], fill = pipe)) +
-      geom_bar(stat = "identity") + 
-      geom_text(aes(label = round(current_plot[[column]], 3)), vjust = -0.3, size = 3.5) 
-      #add y-axis and title similar to last plot
-}
-```
-
 
 ## Making and arranging bar plots
 
