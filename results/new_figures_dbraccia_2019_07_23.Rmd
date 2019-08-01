@@ -117,11 +117,11 @@ plot_bar2 <- function(df, column, title) {
    # plotting
    ggplot(data = current_plot, aes(x = pipe, y = current_plot[[column]], fill = pipe)) +
       geom_bar(stat = "identity", show.legend = FALSE) + 
-      geom_text(aes(label = round(current_plot[[column]], 3)), vjust = -0.3, size = 3.5) +
-      theme(axis.title.x = element_blank(), 
-            axis.title.y = element_blank()) + 
+      theme_bw() %+replace% 
+      theme(axis.title.x = element_blank()) +
+      geom_text(aes(label = round(current_plot[[column]], 3)), vjust = -0.3, size = 3) +
       scale_y_continuous(limits = c(0, 1)) +
-      ggtitle(title) 
+      ggtitle(title) + ylab("proportion")
 }
 ```
 
