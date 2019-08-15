@@ -19,11 +19,11 @@ The data being loaded below comes from running the bayesian hypothesis tests wit
 
 ```{r get data, message=FALSE, warning=FALSE}
 # loading results of bayesian hypothesis tests
-test_files <- list.files("../data/mix_bayes_res/")
-all_tests <- data.frame(vector("numeric", 15935)) # manually setting number of rows for subject "E01JH0004"
+test_files <- list.files("../data/mix_bayes_res/corrected")
+all_tests <- data.frame(vector("numeric", 14380)) # manually setting number of rows for subject "E01JH0004"
 for ( i in 1:length(test_files) ) {
       # loading in current results into one data frame
-      current <- readRDS(paste("../data/mix_bayes_res/", test_files[i], sep = "")) %>% 
+      current <- readRDS(paste("../data/mix_bayes_res/corrected/", test_files[i], sep = "")) %>% 
             filter(biosample_id == "E01JH0004") # only making figure for 1 subject to illustate point
       if (i == 1) {
             all_tests[, i] <- current$pipe
@@ -39,8 +39,8 @@ for ( i in 1:length(test_files) ) {
 all_tests$pipe <- as.factor(all_tests$pipe)
 
 # picking out select beta parameterizations for figure plots
-alpha_1 <- select(all_tests, pipe, params_1_1, params_1_2, params_1_10, params_1_25)
-beta_1 <- select(all_tests, pipe, params_10_10, params_2_1, params_10_1, params_25_1)
+alpha_1 <- select(all_tests, pipe, params_01_01, params_01_02, params_01_10, params_01_25)
+beta_1 <- select(all_tests, pipe, params_10_10, params_02_01, params_10_01, params_25_01)
 
 # log scaling pvalues of hypothesis tests for better visualization.
 alpha_1_log <- cbind(pipe = alpha_1[, 1], -log10(alpha_1[, -1]))
@@ -70,22 +70,22 @@ plot_box <- function(df, column, title){
 
 ### Box plots
 ```{r ggarrange, message=FALSE, warning=FALSE}
-a1_b1 <- plot_box(alpha_1_log, alpha_1_log$params_1_1, 
+a1_b1 <- plot_box(alpha_1_log, alpha_1_log$params_01_01, 
                  title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
-a1_b2 <- plot_box(alpha_1_log, alpha_1_log$params_1_2, 
+a1_b2 <- plot_box(alpha_1_log, alpha_1_log$params_01_02, 
                  title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
-a1_b10 <- plot_box(alpha_1_log, alpha_1_log$params_1_10, 
+a1_b10 <- plot_box(alpha_1_log, alpha_1_log$params_01_10, 
                  title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
-a1_b25 <- plot_box(alpha_1_log, alpha_1_log$params_1_25, 
+a1_b25 <- plot_box(alpha_1_log, alpha_1_log$params_01_25, 
                  title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
 
 a10_b10 <- plot_box(beta_1_log, beta_1_log$params_10_10, 
                  title = paste(expression(alpha), " = ", expression(beta), " = 10") )
-a2_b1 <- plot_box(beta_1_log, beta_1_log$params_2_1, 
+a2_b1 <- plot_box(beta_1_log, beta_1_log$params_02_01, 
                  title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
-a10_b1 <- plot_box(beta_1_log, beta_1_log$params_10_1, 
+a10_b1 <- plot_box(beta_1_log, beta_1_log$params_10_01, 
                  title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
-a25_b1 <- plot_box(beta_1_log, beta_1_log$params_25_1, 
+a25_b1 <- plot_box(beta_1_log, beta_1_log$params_25_01, 
                  title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
 
 bayes_beta <- ggarrange(a1_b1, a10_b10,
@@ -118,7 +118,7 @@ plot_bar <- function(df, column, title, ylabel){
                   title=element_text(size = 8)) + 
             theme_bw() +
             geom_bar(aes(x = pipe, col = column), 
-                     fill = c( "grey", NA,"red", NA, "blue", NA), 
+                     fill = c("grey", NA, "red", NA, "blue", NA), 
                      position = "fill", 
                      size = 0,
                      show.legend = FALSE) +
@@ -129,66 +129,77 @@ plot_bar <- function(df, column, title, ylabel){
 
 ## Making and arranging bar plots
 
+**NOTE: Encountered an error when trying to plot the "qiime" bar: for some parameterizations of the beta prior, there are no titration specific features which get a p-value below 0.05, and therefore, the `fill` parameter in `geom_bar()` has only 5 possible values (T/F for dada2 and mothur but just F for qiime). I could patch this up by passing in another parameter to the `plot_bar` function I've made, but this would mean another thing I have to change and adjust for if the data changes. solution TBD**
 ```{r, }
 ### prepping for bar plots
 ## re-formatting alpha=1 data
 alpha_prop <- if_else((alpha_1 %>% as_tibble() %>%
-                  select("params_1_1", "params_1_2", "params_1_10", "params_1_25") ) < 0.05, 
-                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  select("params_01_01", "params_01_02", "params_01_10", "params_01_25") ) < 0.05, 
+                  TRUE, FALSE) %>% matrix(nrow = 14380, ncol = 4) %>% as_tibble() %>%
                   cbind(alpha_1$pipe)
 
 # re-ordering and re-naming columns 
-alpha_prop <- alpha_prop[, c(6,1,2,3,4)]
-colnames(alpha_prop) <- c("pipe", "params_1_1", "params_1_2", "params_1_10", "params_1_25")
+alpha_prop_TF <- alpha_prop[, c(5,1,2,3,4)]
+colnames(alpha_prop_TF) <- c("pipe", "params_01_01", "params_01_02", "params_01_10", "params_01_25")
+head(alpha_prop_TF)
 
+### not necessary anymore
 # re-doing df with TRUE/FALSE for p-value < & >= 0.05
-alpha_prop_TF <- (alpha_prop[,2:5] == "p < 0.05") %>%
-      as.data.frame()
-alpha_prop_TF$pipe <- alpha_prop$pipe
+# alpha_prop_TF <- (alpha_prop[,2:5] == "p < 0.05") %>%
+#       as.data.frame()
+# alpha_prop_TF$pipe <- alpha_prop$pipe
+# alpha_prop_TF <- alpha_prop_TF[, c(5,1,2,3,4)]
 
-alpha_prop_TF_plot <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_1, 
-                 title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
+# making a test plot
+alpha_prop_TF_plot <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_01_02, 
+                 title = paste(expression(alpha), " = ", expression(beta), " = 1")) 
 
 ## re-formatting beta=1
 beta_prop <- if_else((beta_1 %>% as_tibble() %>%
-                  select("params_10_10", "params_2_1", "params_10_1", "params_25_1") ) < 0.05, 
-                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 15935, ncol = 5) %>% as_tibble() %>%
+                  select("params_10_10", "params_02_01", "params_10_01", "params_25_01") ) < 0.05, 
+                  "p < 0.05", "p >= 0.05") %>% matrix(nrow = 14380, ncol = 5) %>% as_tibble() %>%
                   cbind(beta_1$pipe)
 
 # re-ordering and re-naming columns 
 beta_prop <- beta_prop[, c(6,1,2,3,4)]
-colnames(beta_prop) <- c("pipe", "params_10_10", "params_2_1", "params_10_1", "params_25_1")
+colnames(beta_prop) <- c("pipe", "params_10_10", "params_02_01", "params_10_01", "params_25_01")
 
 # re-doing df with TRUE/FALSE for p-value < & >= 0.05
 beta_prop_TF <- (beta_prop[,2:5] == "p < 0.05") %>%
       as.data.frame()
 beta_prop_TF$pipe <- beta_prop$pipe
 
-beta_prop_TF_plot <- plot_bar(beta_prop_TF, beta_prop_TF[["params_1_1"]], 
+beta_prop_TF_plot <- plot_bar(beta_prop_TF, beta_prop_TF[["params_01_01"]], 
                  title = paste(expression(alpha), " = ", expression(beta), " = 1") ) 
 
 #mutate(pval_cat = if_else(alpha_1[,2:6] < 0.05, "p < 0.05", "p >= 0.05"))
 
 # setting up each plot based on alpha and beta parametrization
-a1_b1 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_1, 
+a1_b1 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_01_01, 
                  title = paste(expression(alpha), " = ", expression(beta), " = 1 (uniform)") ) 
-a1_b2 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_2, 
-                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
-a1_b10 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_10, 
-                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
-a1_b25 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_1_25, 
-                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
+a1_b1
 
-a1_b1_rep <- plot_bar(beta_prop_TF, beta_prop_TF$params_10_10, 
+a1_b2 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_01_02, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 2") )
+a1_b2
+
+a1_b10 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_01_10, 
+                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 10") )
+a1_b10
+
+#a1_b25 <- plot_bar(alpha_prop_TF, alpha_prop_TF$params_01_25, 
+#                 title = paste(expression(alpha), " = 1, ", expression(beta), " = 25") )
+
+a10_b10 <- plot_bar(beta_prop_TF, beta_prop_TF$params_10_10, 
                  title = paste(expression(alpha), " = ", expression(beta), " = 10") )
-a2_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_2_1, 
-                 title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
-a10_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_10_1, 
-                 title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
-a25_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_25_1, 
+#a2_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_02_01, 
+#                 title = paste(expression(alpha), " = 2, ", expression(beta), " = 1") )
+#a10_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_10_01, 
+#                 title = paste(expression(alpha), " = 10, ", expression(beta), " = 1") )
+a25_b1 <- plot_bar(beta_prop_TF, beta_prop_TF$params_25_01, 
                  title = paste(expression(alpha), " = 25, ", expression(beta), " = 1") )
 
-bayes_beta_barplots <- ggarrange(a1_b1, a1_b1_rep,
+bayes_beta_barplots <- ggarrange(a1_b1, a10_b10,
           a1_b2, a2_b1,
           a1_b10, a10_b1,
           a1_b25, a25_b1,
