@@ -1,0 +1,234 @@
+---
+title: "post logFC EDA"
+author: "Nate Olson"
+date: "8/9/2019"
+output: html_document
+---
+
+# Summary
+Analysis of post-exposure specific feature performance.
+
+* Feature characterization
+    - Number of features by sample and pipeline
+    - MA plots for post specific features
+* Individual feature performance
+    * logFC exp V est - with lm fit
+    * feature level metrics
+* Global feature performance
+
+## Loading packages and data
+Source data generated using `2017-10-19_logFC-error-metrics_post.Rmd` in this project's `secondary_analysis` directory.
+```{r, message=FALSE, echo = FALSE}
+library(tidyverse)
+library(trelliscopejs)
+logFC_post <- readRDS("data/logFC_post.RDS")
+
+logFC_feature_summary <- readRDS("data/logFC_post_feature_summary.RDS") %>%
+      mutate(slope_error = 1 - slope)
+```
+
+## Feature Characterization
+
+```{r fig.cap = "MA plot of post-specific and -dominant features for pre- and post-exposure samples. The dashed grey line indicates the -5 logFC threshold used to identify post-dominant features."}
+logFC_post %>% 
+    filter(T1 == 0, T2 == 20) %>% 
+    ggplot() + 
+    geom_hline(aes(yintercept = -5), linetype = 2, color = "grey60") + 
+    geom_point(aes(x = logCPM, y = prepost_logFC, color = factor(T20), shape = biosample_id)) + 
+    facet_wrap(~ pipe) + 
+    theme_bw() + 
+    labs(y = "logFC", shape = "Individual", color = "# non-0 pre-exposure replicates") +
+    theme(legend.position = "bottom", legend.box = "vertical")
+```
+
+
+__Observations__    
+- Featues with logFC > 0  
+- limited number of features few with logFC greater than 10, therefore should limit evaluations to those with logFC < 5.  
+- No clear individual level effects  
+- DADA2 has the greatest number of post-specific features, features observed in post-exposure samples but not pre-exposure samples.
+
+```{r}
+logFC_post %>% 
+    filter(T1 == 0, T2 == 20) %>%     
+    select(pipe, biosample_id, feature_id) %>% 
+    distinct() %>% 
+    group_by(pipe, biosample_id) %>% 
+    summarise(count = n()) %>% 
+    spread(pipe, count, fill = 0) %>% 
+    knitr::kable(caption = "Number of post-specific and dominant features by individual and pipeline.")
+```
+
+__Observations__  
+- DADA2 had the most post-specific and post-dominant features across pipelines.  
+- Similar trend in number of features per individual was observed across pipelines.  
+- Not enough features for individual level analysis except for maybe E01JH0016 and E01JH0038.  
+
+## Example Individual Feature Performance
+
+```{r fig.cap = "Feature-level logFC assessment. Points represent logFC for pairwise titration comparisons. The dark orange line represent a 1-to-1 relationship between the expected and estimates logFC values. logFC estimates obtained using edgeR [NEED TO DOUBLE CHECK]. The linear fit for the estimated and expected logFC indicated by the darkblue line and shaded region. The plots are split by feature and annotated with  pre- and post-exposure comparison logFC and logCPM."}
+logFC_post %>% 
+    filter(pipe == "mothur", biosample_id == "E01JH0038",
+           T1 != 0, T2 != 20) %>% 
+    left_join(logFC_feature_summary) %>% 
+    mutate(feature_id = paste(feature_id,
+                              "\nlogFC:",
+                              round(prepost_logFC,2), 
+                              "\nlogCPM:", 
+                              round(prepost_logCPM,2),
+                              "\nAdjusted R^2:",
+                              round(adj.r.squared,2),
+                              "\n1-Slope:",
+                              round(slope_error, 2))) %>% 
+    mutate(feature_id = fct_reorder(feature_id, post_nb)) %>% 
+    ggplot() + 
+    geom_abline(aes(slope = 1, intercept = 0), color = "darkblue") + 
+    geom_point(aes(x = exp_logFC, y = logFC)) + 
+    geom_smooth(aes(x = exp_logFC, y = logFC), method = "lm", color = "darkorange") + 
+    facet_wrap(~feature_id, nrow = 1) + 
+    theme_bw() + 
+    labs(x = "Expected logFC", y = "Estimated logFC")
+```
+
+
+
+__Observations__  
+- Performance increases with logCPM. 
+- Grouping observed in logFC associated with comparisons between titrations < 5 and > 5 (see plots below).
+
+
+```{r}
+logFC_post %>% 
+    filter(pipe == "mothur", biosample_id == "E01JH0038",
+           T1 != 0, T2 != 20) %>% 
+    mutate(feature_id = paste(feature_id,
+                              "\nlogFC:",
+                              round(prepost_logFC,2), 
+                              "\nlogCMP:", 
+                              round(prepost_logCPM,2))) %>% 
+    mutate(feature_id = fct_reorder(feature_id, post_nb)) %>% 
+    ggplot() + 
+    geom_point(aes(x = exp_logFC, y = logFC, color = factor(T1))) + 
+    # geom_text(aes(x = -0.5, y = -18, label = round(post_nb * 100, 2))) + 
+    facet_wrap(~feature_id, scales = "free") + 
+    theme_bw()
+```
+
+
+```{r}
+logFC_post %>% 
+    filter(pipe == "mothur", biosample_id == "E01JH0038",
+           T1 != 0, T2 != 20) %>% 
+    mutate(feature_id = paste(feature_id,
+                              "\nlogFC:",
+                              round(prepost_logFC,2), 
+                              "\nlogCMP:", 
+                              round(prepost_logCPM,2))) %>% 
+    mutate(feature_id = fct_reorder(feature_id, post_nb)) %>% 
+    ggplot() + 
+    geom_point(aes(x = exp_logFC, y = logFC, color = factor(T2))) + 
+    facet_wrap(~feature_id, scales = "free") + 
+    theme_bw()
+```
+
+## Individual Feature Comparisons
+```{r eval = FALSE}
+library(trelliscopejs)
+logFC_post %>% 
+    filter(T1 != 0, T2 != 20) %>% 
+    left_join(logFC_feature_summary) %>% 
+    # mutate(feature_id = paste(feature_id,
+    #                           "\nlogFC:",
+    #                           round(prepost_logFC,2), 
+    #                           "\nlogCPM:", 
+    #                           round(prepost_logCPM,2),
+    #                           "\nAdjusted R^2:",
+    #                           round(adj.r.squared,2),
+    #                           "\n1-Slope:",
+    #                           round(slope_error, 2))) %>% 
+    mutate(feature_id = fct_reorder(feature_id, post_nb)) %>% 
+    ggplot() + 
+    geom_abline(aes(slope = 1, intercept = 0), color = "darkblue") + 
+    geom_point(aes(x = exp_logFC, y = logFC)) + 
+    geom_smooth(aes(x = exp_logFC, y = logFC), method = "lm", color = "darkorange") + 
+    facet_trelliscope(~ feature_id * biosample_id * pipe, nrow = 2, ncol = 5) + 
+    theme_bw() + 
+    labs(x = "Expected logFC", y = "Estimated logFC")
+```
+
+
+
+## Global Feature Performance
+
+```{r fig.cap = "logFC assessment metrics for post-specific and pre-specific features by pipeline and individual. Metrics were computed from a linear model fix to the expected and estimated logFC between titrations. Slope error is 1-slope of the linear model. Expected values R2 = 1 and slope error  = 0."}
+logFC_post %>% 
+    filter(T1 == 0, T2 == 20) %>% 
+    left_join(logFC_feature_summary) %>% 
+    select(biosample_id, pipe, feature_id, adj.r.squared, slope_error) %>% 
+    gather("metric", "value", 
+           -biosample_id, -pipe, -feature_id) %>% 
+    ggplot() + 
+    geom_boxplot(aes(x = biosample_id, y = value, color = pipe)) + 
+    geom_point(aes(x = biosample_id, y = value, color = pipe), 
+               pch = 21, 
+                position = position_jitterdodge(jitter.width = 0.1)) + 
+    facet_wrap(~metric, ncol = 1, scales = "free") + 
+    theme_bw() + 
+    labs(x = "Individual", y = "Metric", color = "Pipeline") + 
+    theme(legend.position = "bottom")
+```
+
+__Observations__  
+- Only able to comment on trends due to limited number of features. 
+- Individual has a greater effect than pipeline, this is attributed to variability in the difference in prokaryotic DNA proportion for the unmixed samples across individuals. 
+- E01JH0038 had R2 and slope metrics closet to the expected values.
+
+
+```{r warning = FALSE, fig.caption = "Relationship between feature characteristics on logFC assessment metrics. prepost_logFC and prepost_logCPM are the edgeR logFC and logCPM estimates for the unmixed pre- and post-exposure samples. T20 is the number of non-zero unmixed pre-exposure PCR replicates. pa_mixed is the number of non-zero titrations."}
+library(ggforce)
+logFC_post %>% 
+    filter(T1 == 0, T2 == 20) %>% 
+    left_join(logFC_feature_summary) %>% 
+    select(biosample_id, pipe, feature_id, prepost_logFC, prepost_logCPM, 
+           post_nb, T20, pa_mixed, adj.r.squared, slope_error) %>% 
+    ggplot(aes(x = .panel_x, y = .panel_y)) + 
+    geom_point(aes(color = biosample_id, shape = pipe), alpha = 0.5) +
+    geom_smooth(aes(color = biosample_id),se = FALSE) +
+    facet_matrix(vars(adj.r.squared, slope_error),
+                 vars(prepost_logFC, prepost_logCPM, T20, pa_mixed)) + 
+    theme_bw() + 
+    theme(legend.position = "bottom", legend.box = "vertical") + 
+    labs(color = "Individual", shape = "Pipeline")
+```
+
+__Observations__
+- More negative logFC values for the pre-post comparison tends to improve error metrics, as expected. Though only to a point, this is likely an artifact of having a limited number of features with pre-post logFC < -7, potentially due to errors assocaited with the unmixed post relative abundance estimates (values might be overestimated ...).
+- logCPM for pre-post comparison is a better indicator of feature performance, again to a point, features with higher pre-post logCPM do not consistently perform better.
+- The number of non-zero unmixed pre-replicates does not correlate with logFC assessment metric performance, though number of non-zero mixed PCR replicates does. This is likely related to post relative abundance.
+
+
+
+```{r warnings = FALSE, fig.cap = "Relationship between logFC assessment metrics and unmixed post sample feature relative abundance."}
+logFC_post %>% 
+    filter(T1 == 0, T2 == 20) %>% 
+    left_join(logFC_feature_summary) %>% 
+    select(biosample_id, pipe, feature_id,
+           post_nb, adj.r.squared, slope_error) %>% 
+    gather("metric", "value", 
+           -biosample_id, -pipe, -feature_id, - post_nb) %>% 
+    ggplot() + 
+    geom_point(aes(x = post_nb, y = value, 
+                   color = biosample_id, shape = pipe), alpha = 0.5) +
+        geom_smooth(aes(x = post_nb, y = value, 
+                   color = biosample_id), se = FALSE) +
+    facet_wrap(~metric) + 
+    theme_bw() + 
+    theme(legend.position = "bottom", legend.box = "vertical") + 
+    labs(color = "Individual", shape = "Pipeline", y = "Metric", 
+         x = "Unmixed Post-Exposure Sample Feature Relative Abundance") + 
+    scale_x_log10()
+```
+
+
+__Observations__  
+- Excluding individual level differences, as expected, post-exposure unmixed sample feature relative abundance is the best indicator of logFC assessment feature performance.

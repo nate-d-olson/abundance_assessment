@@ -82,7 +82,6 @@ logFC_post <- logFC_post %>%
 # rm(logFC_prepost)
 ```
 
-
 ## log fold-change error metrics 
 The slope estimate and R^2^ for feature level linear models of the expected and estimated log fold-change. The bias metric is 1-slope estimate and the model R^2^ value is the variance metric.
 
