@@ -1,0 +1,396 @@
+---
+title: "Relative Abundance Error Rate w/ experimental theta values"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+```{r relAbuSetup, include=FALSE}
+## TODO feature count table
+library(nlme)
+library(ape)
+library(multcomp)
+library(kableExtra)
+library(tidyverse)
+library(forcats)
+library(stringr)
+library(ggpubr)
+library(ggridges)
+nb_counts <- readRDS("../data/nb_counts_titrations.RDS")
+pa_summary_anno_df <- readRDS("../data/pa_summary_anno_df.RDS")
+theta_est <- readRDS("../data/bootstrap_theta_estimates.rds")
+```
+
+```{r relAbuMunge, echo = FALSE, message = FALSE, warning = FALSE}
+### TODO - move to separate Rmd and generate data_frame
+pre_post_prop <- nb_counts %>%
+    ungroup() %>%
+    filter(t_fctr %in% c(0,20)) %>%
+    mutate(end_point = if_else(t_fctr == 0 , "post", "pre")) %>%
+    dplyr::select(-t_fctr) %>%
+    ## setting values to 0 when one or more of the PCR replicates are 0 for titration end-points
+    spread(end_point,nb_prop, fill = 0)
+
+prop_inferred <- theta_est %>%
+    filter(pipe == "unclustered") %>%
+    ungroup() %>%
+    mutate(t_fctr = factor(t_fctr, levels = c(0:5, 10, 15, 20))) %>%
+    dplyr::select(biosample_id, theta, t_fctr) %>%
+    right_join(nb_counts) %>% right_join(pre_post_prop) %>%
+    filter(t_fctr %in% c(1:5,10,15)) %>%
+    ## Using experimental theta estimates to calculate expected values
+    mutate(experimental_prop = post * theta + pre * (1 - theta))
+
+## Excluding mix and unmix specific features Only including features observed in
+## all or none of the four pre- post- PCR replicates Features with relative
+## abundance estimates and expected values less than 1e-5, these are features
+## that we would not expect to consistently observe in a PCR replicate for the
+## given sequencing depth, ~100k Excluding titrations where the inferred theta
+## values are less than 1
+pa_filter <- pa_summary_anno_df %>%
+    filter(pa_specific == "unspecific") %>%
+    dplyr::select(biosample_id, pipe, feature_id, full_pre, T00, T20, pa_mixed) %>%
+    filter(T00 %in% c(0,4), T20 %in% c(0,4))
+
+prop_inferred <- prop_inferred %>%
+    right_join(pa_filter) %>%
+    # filter(nb_prop > 1e-5,
+    #        experimental_prop > 1e-5,
+    #        theta_hat_mean > 0)
+    ## Filtering absed on 1/median library size
+    filter(nb_prop > 1/73571,
+           experimental_prop > 1/73571,
+           theta > 0)
+
+## Save for supplemental table
+saveRDS(prop_inferred, "../data/prop_inferred.RDS")
+
+
+#### Error Rate Calculations
+rel_abu_error <- prop_inferred %>%
+    mutate(t_fctr = factor(t_fctr, levels = c(1:5, 10, 15))) %>%
+    mutate(inferred_error = abs(nb_prop - experimental_prop),
+           inferred_error_rate = inferred_error/experimental_prop)
+
+rel_abu_error_summary <-  rel_abu_error %>%
+    group_by(pipe, biosample_id, feature_id) %>%
+    summarise(median_rel_abu = median(nb_prop),
+              median_error = median(inferred_error_rate),
+              iqr_error = IQR(inferred_error_rate),
+              rcov_error = iqr_error/median_error,
+              mean_error = mean(inferred_error_rate),
+              var_error = var(inferred_error_rate),
+              cov_error = var_error/mean_error)
+
+saveRDS(rel_abu_error, "../data/rel_abu_error.RDS")
+saveRDS(rel_abu_error_summary, "../data/rel_abu_error_summary.RDS")
+
+### Error rate boxplot and outlier annotation
+error_boxplot <- rel_abu_error %>% group_by(pipe, biosample_id, feature_id) %>%
+    summarise(median_error = median(inferred_error_rate)) %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = median_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Bias Metric", color = "Pipeline")
+
+## Annotating features as outliers based on boxplot
+error_plot_dat <- ggplot_build(error_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_error_dat <- error_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+rel_error_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_error_dat) %>%
+    mutate(outlier_cat = if_else(median_error < ymin | median_error > ymax,
+                                 "outlier","inlier"))
+
+## Robust COV Analysis
+rcov_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = rcov_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+
+
+## Annotating features as outliers based on boxplot
+rcov_plot_dat <- ggplot_build(rcov_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_rcov_dat <- rcov_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+rcov_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_rcov_dat) %>%
+    mutate(outlier_cat = if_else(rcov_error < ymin | rcov_error > ymax,
+                                 "outlier","inlier"))
+
+## Feature-level error summary data frame
+rel_error_summary <- rel_error_outlier_cat %>%
+    dplyr::rename(error_cat = outlier_cat) %>%
+    dplyr::select(-ymin, -ymax) %>%
+    left_join(rcov_outlier_cat) %>%
+    dplyr::rename(rcov_cat = outlier_cat)
+
+```
+
+```{r relAbuPlots, echo = FALSE, message = FALSE, warning = FALSE}
+### Plot Code -----------------------------------------------------------------
+## Observed v. Expected Regression plot
+relAbuOvE <- prop_inferred %>%
+    ggplot() +
+    geom_smooth(aes(x = experimental_prop, y = nb_prop, color = pipe), method = "lm") +
+    geom_abline(aes(intercept = 0, slope = 1), color = "grey60", linetype = 2) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    scale_y_log10() + scale_x_log10() +
+    theme_bw() +
+    labs(x = "Expected",
+         y = "Observed",
+         color = "Pipeline")
+
+relAbuErrorDist <- rel_abu_error %>%
+      mutate(inferred_error_rate = if_else(inferred_error_rate < 1e-2, 1e-2, inferred_error_rate)) %>%
+    ggplot() +
+    geom_density_ridges(aes(x = inferred_error_rate, y = pipe, color = pipe), alpha = 0.5) +
+    facet_wrap(~biosample_id, ncol = 1) + theme_bw() +
+    labs(x = "Error Rate", y = "Pipeline", color = "Pipeline") +
+    scale_x_log10()
+
+## Median Error Pipeline Comparison
+ymin <- ggplot_build(error_boxplot)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(error_boxplot)$data[[1]]$ymax %>% max()
+error_boxplot <- error_boxplot + coord_cartesian(ylim = c(ymin, ymax))
+
+## RCOV Error Pipeline Comparison
+ymin <- ggplot_build(rcov_boxplot)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(rcov_boxplot)$data[[1]]$ymax %>% max()
+rcov_boxplot <- rcov_boxplot + coord_cartesian(ylim = c(ymin, ymax))
+```
+
+
+```{r relAbuStats, echo = FALSE, message = FALSE, warning = FALSE}
+## Bias - Error rate
+error_fit_dat <- rel_error_outlier_cat %>%
+    ungroup() %>%
+    filter(outlier_cat == "inlier", pipe != "unclustered") %>%
+    mutate(pipe = factor(pipe))
+
+# Fitting mixed effects model with individual as the fixed effect
+error_fit <- nlme::lme(median_error ~ pipe, random =  ~ 1 | biosample_id,
+                       data = error_fit_dat)
+
+# Pipe error estimates
+dada_error <- error_fit$coefficients$fixed['(Intercept)']
+mothur_error <- dada_error + error_fit$coefficients$fixed['pipemothur']
+qiime_error <- dada_error + error_fit$coefficients$fixed['pipeqiime']
+
+# Post-hoc test to check for pipeline differences
+## based on fit pipeline estimates are all negative, using alternative greater to determine which pipelines are closer to zero
+error_post_hoc <- glht(error_fit, linfct = mcp(pipe = "Tukey"), alternative = "greater")
+
+error_tukey_p <- summary(error_post_hoc)$test$pvalues
+error_tukey_t <- summary(error_post_hoc)$test$tstat
+
+# Checking whether indiviudal or pipeline contributes more to the overal vaiance
+error_var <- ape::varcomp(error_fit)
+
+## Variance - RCOV
+rcov_fit_dat <- rcov_outlier_cat %>%
+    ungroup() %>%
+    filter(outlier_cat == "inlier", pipe != "unclustered") %>%
+    mutate(pipe = factor(pipe))
+
+# Fitting mixed effects model with individual as the fixed effect
+rcov_fit <- nlme::lme(rcov_error ~ pipe, random =  ~ 1 | biosample_id,
+                      data = rcov_fit_dat)
+
+# Pipe RCOV estimates
+dada_rcov <- rcov_fit$coefficients$fixed['(Intercept)']
+mothur_rcov <- dada_rcov + rcov_fit$coefficients$fixed['pipemothur']
+qiime_rcov <- dada_rcov + rcov_fit$coefficients$fixed['pipeqiime']
+
+# Checking whether indiviudal or pipeline contributes more to the overal vaiance
+rcov_var <- ape::varcomp(rcov_fit)
+```
+
+
+```{r relAbuError, fig.width = 6.68, fig.cap = "Relative abundance assessment. (A) A linear model of the relationship between the expected and observed relative abundance. The dashed grey line indicates expected 1-to-1 relationship. The plot is split by individual and color is used to indicate the different bioinformatic pipelines. A negative binomial model was used to calculate an average relative abundance estimate across the four PCR replicates. Points with observed and expected relative abundance values less than 1/median library size were excluded from the data used to fit the linear model. (B) Relative abundance error rate distribution by individual and pipeline.", echo = FALSE, warning=FALSE, message = FALSE}
+
+relAbuOvE <- prop_inferred %>%
+      ungroup() %>% 
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+    ggplot() +
+      geom_smooth(aes(x = experimental_prop, y = nb_prop, color = pipe),
+                  method = "lm") +
+      geom_abline(aes(intercept = 0, slope = 1), #color = "grey40",
+                  linetype = 2) +
+      facet_wrap( ~ biosample_id, nrow = 1) +
+      scale_y_log10() + scale_x_log10() +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+      labs(x = "Expected Rel. Abu.", y = "Observed Rel. Abu.", color = "Pipeline")
+
+relAbuErrorDist <- rel_abu_error %>%
+      ungroup() %>% 
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+      mutate(inferred_error_rate = if_else(inferred_error_rate < 1e-2, 1e-2, inferred_error_rate)) %>%
+      ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = inferred_error_rate, fill = pipe)) +
+      theme_bw() +
+      labs(y = "Rel. Abu. Error Rate", x = "Individual", fill = "Pipeline") +
+      scale_y_log10()
+
+ggarrange(relAbuOvE,
+          relAbuErrorDist,
+          labels = "AUTO", align = "v",
+          ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
+```
+
+```{r}
+ggsave("../figs/relAbuError-1.pdf",width = 170, units = "mm")
+```
+
+
+```{r relAbuErrorMetrics, fig.width = 6.68, fig.cap = "Comparison of pipeline relative abundance assessment feature-level error metrics. Distribution of feature-level relative abundance (A) bias metric - median error rate and (B) variance - robust coefficient of variation ($RCOV=(IQR)/|median|$) by individual and pipeline. Boxplot outliers, $1.5\\times IQR$ from the median were excluded from the figure to prevent extreme metric values from obscuring metric value visual comparisons.", echo = FALSE, warning=FALSE, message = FALSE}
+error_boxplot <- rel_abu_error %>% group_by(pipe, biosample_id, feature_id) %>%
+    summarise(median_error = median(inferred_error_rate)) %>%
+      ungroup() %>% 
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+    ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = median_error, fill = pipe),
+                   outlier.shape = NA) +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
+      labs(x = "Individual", y = "Median Error Rate", fill = "Pipeline")
+
+ymin <- ggplot_build(error_boxplot)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(error_boxplot)$data[[1]]$ymax %>% max()
+error_boxplot <- error_boxplot + coord_cartesian(ylim = c(ymin, ymax))
+
+
+rcov_boxplot <- rel_abu_error_summary %>%
+      ungroup() %>% 
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+    ggplot() +
+      geom_boxplot(aes(x = biosample_id, y = rcov_error, fill = pipe),
+                   outlier.shape = NA) +
+      theme_bw() +
+      labs(x = "Individual", y = "RCOV", fill = "Pipeline")
+
+ymin <- ggplot_build(rcov_boxplot)$data[[1]]$ymin %>% min()
+ymax <- ggplot_build(rcov_boxplot)$data[[1]]$ymax %>% max()
+rcov_boxplot <- rcov_boxplot + coord_cartesian(ylim = c(ymin, ymax))
+
+ggarrange(error_boxplot + rremove("x.text") + rremove("xlab"),
+          rcov_boxplot,nrow = 2, ncol = 1, heights = c(0.45, 0.55),
+          common.legend = TRUE, legend = "bottom",
+          align = "v",labels = "AUTO")
+```
+
+```{r}
+ggsave("../figs/relAbuErrorMetrics-1.pdf",width = 170, units = "mm")
+```
+
+```{r relAbuErrorTbl, echo = FALSE, warning = FALSE, message = FALSE}
+rel_abu_error_summary %>%
+      group_by(pipe, biosample_id) %>%
+      summarise(med_med_error = median(median_error),
+                min_med_error = min(median_error),
+                max_med_error = max(median_error),
+                med_rcov_error = median(rcov_error),
+                min_rcov_error = min(rcov_error),
+                max_rcov_error = max(rcov_error)) %>%
+      ## Value ranges
+      mutate(Median = paste0(round(med_med_error,2), " (",
+                             round(max_med_error,2), "-",
+                             round(min_med_error,2),")"),
+             RCOV = paste0(round(med_rcov_error,2), " (",
+                           round(max_rcov_error,2), "-",
+                           round(min_rcov_error,2),")")) %>%
+      mutate(Bias = max_med_error, Variance = max_rcov_error) %>%
+     dplyr::select(pipe, biosample_id, Bias, Variance) %>%
+      ungroup() %>% 
+      mutate(pipe = forcats::fct_recode(pipe,
+                                        Unclustered = "unclustered",
+                                        DADA2 = "dada2", 
+                                        Mothur = "mothur", 
+                                        QIIME = "qiime")) %>% 
+      dplyr::rename(Pipeline = pipe, Individual = biosample_id) %>%
+      gather("Metric","value", -Pipeline, -Individual) %>%
+      spread(Individual, value) %>%
+      arrange(Metric) %>%
+     dplyr::select(Metric, Pipeline, E01JH0004, E01JH0011, E01JH0016, E01JH0017, E01JH0038) %>%
+      knitr::kable(booktabs = TRUE, caption = "Median and range of feature-level error rate bias (median error rate) and variance (robust COV) by pipeline and individual.", digits = 2) %>%
+      collapse_rows(columns = 1) %>%
+    kable_styling(latex_options = c("scale_down"))
+```
+
+For the relative abundance assessment, we evaluated the consistency of the observed and expected relative abundance estimates for a feature and titration as well as feature-level bias and variance.
+The PRE and POST estimated relative abundance and inferred $\theta$ values were used to calculate titration and relative abundance error rates.
+Relative abundance error rate is defined as $|exp - obs|/exp$, where $exp$ and $obs$ is the expected and observed relative abundance. 
+To control for biases in feature inference, the three pipelines were compared to an unclustered dataset. 
+The unclustered count table was generated using the 40,000 most abundant features from Mothur's initial preprocessing (see Methods for details). 
+Unclustered pipeline $\theta$ estimates were used to calculate the error rates for all pipelines to prevent over-fitting. 
+Only features observed in all PRE and POST PCR replicates and PRE and POST specific features were included in the analysis (Table \@ref(tab:relAbuErrorTbl)).
+PRE and POST specific features were defined as present in all four of the PRE or POST PCR replicates, respectively, but none of the PCR replicates for the other unmixed samples.
+There is lower confidence in PRE or POST feature relative abundance when the feature is not observed all 4 PCR replicates, therefore these features were not included in the analysis.
+Overall, agreement between inferred and observed relative abundance was high for all individuals and bioinformatic pipelines (Fig. \@ref(fig:relAbuError)A).
+The error rate distribution was similarly consistent across pipelines, including long tails (Fig. \@ref(fig:relAbuError)B)
+
+<!-- TODO RECHARACTERIZE OUTLINERS -->
+To assess quantitative accuracy, we compared the feature-level relative abundance error rate bias (median error rate, Fig. \@ref(fig:relAbuErrorMetrics)A) and variance ($RCOV=(IQR)/|median|$ Fig. \@ref(fig:relAbuErrorMetrics)B) across pipelines and individuals using mixed effects models.
+
+To prevent these outlier features from biasing the comparison they were not used to fit the mixed effects model.
+Multiple comparisons test (Tukey) was used to test for significant differences in feature-level bias and variance between pipelines.
+A one-sided alternative hypothesis was used to determine which pipelines had smaller feature-level error rate.
+
+__Mean feature-level bias  (\@ref(fig:relAbuErrorMetrics)B)__
+
+- DADA2 = (`r round(dada_error,2)`)  
+- Mothur = (`r round(mothur_error,2)`)
+- QIIME = (`r round(qiime_error,2)`).
+
+__feature-level variance (Fig. \@ref(fig:relAbuErrorMetrics)B)__  
+
+- Mothur = `r round(mothur_rcov,2)`  
+- QIIME = `r round(qiime_rcov,2)`   
+- DADA2 = `r round(dada_rcov)`  
+

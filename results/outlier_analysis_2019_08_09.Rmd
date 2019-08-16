@@ -1,0 +1,380 @@
+---
+title: "Outlier Analysis"
+author: "Domenick Braccia"
+date: "8/15/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+# Overview
+
+Here, outlier features from each of the three pipelines considered - dada2, mothur and qiime - are examined. Features are labeled outliers based on 6 different error metrics: "median_error", "iqr_error", "rcov_error", "mean_error", "var_error" and "cov_error" 
+
+### Retrieving saved data
+
+Data comes from relative abundance error metrics section of "relative_abundance_assessment_results.Rmd" file and is saved to the ~/data/ folder. Boxplots for each error metric are drawn from which outliers will be extracted and examined.
+
+```{r}
+# loading data saved from rel_abundance_est Rmd file #
+rel_abu_error <- readRDS(file = "../data/rel_abu_error.RDS")
+rel_abu_error_summary <- readRDS(file = "../data/rel_abu_error_summary.RDS")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+######################### MEDIAN ERROR ######################### 
+### Error rate boxplot and outlier annotation
+median_error_boxplot <- rel_abu_error %>% group_by(pipe, biosample_id, feature_id) %>%
+    summarise(median_error = median(inferred_error_rate)) %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = median_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Bias Metric", color = "Pipeline")
+#error_boxplot
+
+## Annotating features as outliers based on boxplot
+median_plot_dat <- ggplot_build(median_error_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_median_dat <- median_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+median_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_median_dat) %>%
+    mutate(outlier_cat = if_else(median_error < ymin | median_error > ymax,
+                                 "outlier","inlier"))
+
+# making outliers summary table
+outliers_mederror <- median_outlier_cat %>% 
+    group_by(pipe, outlier_cat) %>%
+    summarize("totals" = n()) %>%
+    spread(outlier_cat, totals) %>%
+    mutate("outlier_prop" = outlier / inlier) %>%
+    add_column(metric = "median")
+outliers_mederror <- outliers_mederror[, c(5,1,2,3,4)]
+#outliers_mederror
+
+
+######################### IQR ERROR ############################
+## Robust IQR Analysis
+iqr_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = iqr_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+#iqr_boxplot
+
+## Annotating features as outliers based on boxplot
+iqr_plot_dat <- ggplot_build(iqr_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_iqr_dat <- iqr_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+iqr_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_iqr_dat) %>%
+    mutate(outlier_cat = if_else(iqr_error < ymin | iqr_error > ymax,
+                                 "outlier","inlier"))
+
+# making outliers summary table
+outliers_iqrerror <- iqr_outlier_cat %>% 
+    group_by(pipe, outlier_cat) %>%
+    summarize("totals" = n()) %>%
+    spread(outlier_cat, totals) %>%
+    mutate("outlier_prop" = outlier / inlier) %>%
+    add_column(metric = "iqr")
+outliers_iqrerror <- outliers_iqrerror[, c(5,1,2,3,4)]
+#outliers_iqrerror
+
+######################### RCOV ERROR ###########################
+## Robust COV Analysis
+rcov_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = rcov_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+#rcov_boxplot
+
+## Annotating features as outliers based on boxplot
+rcov_plot_dat <- ggplot_build(rcov_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_rcov_dat <- rcov_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+rcov_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_rcov_dat) %>%
+    mutate(outlier_cat = if_else(rcov_error < ymin | rcov_error > ymax,
+                                 "outlier","inlier"))
+
+# making outliers summary table
+outliers_rcoverror <- rcov_outlier_cat %>% 
+    group_by(pipe, outlier_cat) %>%
+    summarize("totals" = n()) %>%
+    spread(outlier_cat, totals) %>%
+    mutate("outlier_prop" = outlier / inlier) %>%
+    add_column(metric = "rcov")
+outliers_rcoverror <- outliers_rcoverror[, c(5,1,2,3,4)]
+#outliers_rcoverror
+
+
+
+######################### MEAN ERROR ###########################
+## MEAN error rate boxplot and outlier analysis
+mean_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = mean_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+#mean_boxplot
+
+## Annotating features as outliers based on boxplot
+mean_plot_dat <- ggplot_build(mean_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_mean_dat <- mean_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+mean_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_mean_dat) %>%
+    mutate(outlier_cat = if_else(mean_error < ymin | mean_error > ymax,
+                                 "outlier","inlier"))
+
+# making outliers summary table
+outliers_meanerror <- mean_outlier_cat %>% 
+    group_by(pipe, outlier_cat) %>%
+    summarize("totals" = n()) %>%
+    spread(outlier_cat, totals) %>%
+    mutate("outlier_prop" = outlier / inlier) %>%
+    add_column(metric = "mean")
+outliers_meanerror <- outliers_meanerror[, c(5,1,2,3,4)]
+#outliers_meanerror
+
+
+######################### VAR ERROR ############################
+## VAR error rate boxplot and outlier analysis
+var_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = var_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+#var_boxplot
+
+## Annotating features as outliers based on boxplot
+var_plot_dat <- ggplot_build(var_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_var_dat <- var_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+var_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_var_dat) %>%
+    mutate(outlier_cat = if_else(var_error < ymin | var_error > ymax,
+                                 "outlier","inlier"))
+
+# making outliers summary table
+outliers_varerror <- var_outlier_cat %>% 
+    group_by(pipe, outlier_cat) %>%
+    summarize("totals" = n()) %>%
+    spread(outlier_cat, totals) %>%
+    mutate("outlier_prop" = outlier / inlier) %>%
+    add_column(metric = "var")
+outliers_varerror <- outliers_varerror[, c(6,1,2,3,4,5)]
+#outliers_varerror
+
+
+######################### COV ERROR ############################
+## COV error rate boxplot and outlier analysis
+cov_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = cov_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+#cov_boxplot
+
+## Annotating features as outliers based on boxplot
+cov_plot_dat <- ggplot_build(cov_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_cov_dat <- cov_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+cov_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_cov_dat) %>%
+    mutate(outlier_cat = if_else(cov_error < ymin | cov_error > ymax,
+                                 "outlier","inlier"))
+
+# making outliers summary table
+outliers_coverror <- cov_outlier_cat %>% 
+    group_by(pipe, outlier_cat) %>%
+    summarize("totals" = n()) %>%
+    spread(outlier_cat, totals) %>%
+    mutate("outlier_prop" = outlier / inlier) %>%
+    add_column(metric = "cov")
+outliers_coverror <- outliers_coverror[, c(6,1,2,3,4,5)]
+#outliers_coverror
+
+
+##### Bringing all metric tables together (will be added to later) #####
+outliers <- list(median_error = outliers_mederror, iqr_error = outliers_iqrerror, 
+                 rcov_error = outliers_rcoverror, mean_error = outliers_meanerror, 
+                 var_error = outliers_varerror, cov_error = outliers_coverror)
+outliers_cat <- list(median_cat = median_outlier_cat, iqr_cat = iqr_outlier_cat, 
+                 rcov_cat = rcov_outlier_cat, mean_cat = mean_outlier_cat, 
+                 var_cat = var_outlier_cat, cov_cat = cov_outlier_cat)
+```
+
+# Plotting error distributions 
+
+Below are distributions of the feature level error metrics examined. The vertical line on each plot indicates the value at which features are labeled "outliers"
+
+```{r metric distributions, warning=FALSE, echo=FALSE}
+############################ GENERIC ############################
+# Initializing 
+pipelines = c("dada2", "mothur", "qiime", "unclustered")
+metric_cat <- c("median_cat", "iqr_cat", "rcov_cat", 
+             "mean_cat", "var_cat", "cov_cat")
+metrics <- c("median_error", "iqr_error", "rcov_error", 
+             "mean_error", "var_error", "cov_error")
+
+# looping through outlier_cat variables
+#plot_hists <- function(pipelines, metric_cat, metrics) {
+plot_list <- list()
+for (i in seq(pipelines)) {
+    for (j in seq(metrics)) {
+        current_features <- filter(outliers_cat[[metric_cat[j]]], pipe == pipelines[i])[metrics[j]]
+        current_outliers <- filter(outliers_cat[[metric_cat[j]]], pipe == pipelines[i], outlier_cat == "outlier")[metrics[j]]
+        
+        #ggplot version of plots
+        colnames(current_features) <- c("data")
+        plot_list[[j]] <- ggplot(current_features, aes(x = data)) +
+            geom_histogram(bins = 75) + 
+            geom_vline(xintercept = min(current_outliers)) +
+            ggtitle(pipelines[i]) + xlab(metrics[j])
+        
+        ## base R way
+        #hist(current_features, breaks = 100, main = paste(pipelines[i], metrics[j]))
+        #abline(v = min(current_outliers))
+    }
+    # arrange a plot for each pipeline
+    aplot <- ggarrange(plotlist = plot_list, ncol = 3, nrow = 2)
+    print(aplot)
+}
+#}
+#plot_hists(pipelines = pipelines, metric_cat = metric_cat, metrics = metrics)
+```
+
+# Examining "repeat" outliers
+
+Below, two columns are added to the outlier summary tables. 
+
+`repeat_prop` contains the proportion of outlier features that appear as outliers in more than one sample. Overall, there tends to be very few - if any - repeat outliers for each of the three pipelines examined.
+
+`prop_greater_2x` contains the proportion of outlier features that are greater than 2x the minumum outlier error metric value. These proportions seems to vary greatly by pipeline.
+
+**NOTE: for the variance and covariance error metrics, a handful of features were not identified as outliers or inlers. This seems to stem from the original definition of an outlier and inlier from earlier in the analysis, since most features have the same value for `var_error` or `cov_error` (see histograms for these metrics above).**
+
+```{r repeat offenders, warning=FALSE}
+#Q: do features within a pipeline show up as outliers for more than one sample?
+#Q: how many outlier features have values 2X the smallest outlier value?
+
+##### GENERIC #####
+#repeat_outliers <- function(metric_cat) {
+repeat_outliers_row <- vector(mode = "numeric")
+repeat_outleirs <- matrix(0, nrow = 4, ncol = 6)
+prop_greater_2x_row <- vector(mode = "numeric")
+prop_greater_2x <- matrix(0, nrow = 4, ncol = 6)
+for (i in seq(pipelines)) {
+    for (j in seq(metrics)) {
+        #calculating number of outliers > 2x the minumum outlier value
+        current_outliers <- filter(outliers_cat[[metric_cat[j]]], pipe == pipelines[i], outlier_cat == "outlier")[metrics[j]]
+        prop_greater_2x_row[j] <- sum(current_outliers > 2 * min(current_outliers)) / nrow(current_outliers)
+        
+        #making repeat outlier rows for summary tables
+        current_metric <- outliers_cat[[metric_cat[j]]] %>% 
+            filter(pipe == pipelines[i], outlier_cat == "outlier") %>%
+            group_by(feature_id) %>%
+            summarise(num_samples = n())
+        repeat_outliers_row[j] <- sum(current_metric$num_samples > 1) / length(current_metric$num_samples)
+    }
+    #print(repeat_outliers_row)
+    repeat_outleirs[i, ] <- repeat_outliers_row
+    #print(prop_greater_2x_row)
+    prop_greater_2x[i, ] <- prop_greater_2x_row
+}
+
+for (i in seq(metrics)) {
+    outliers[[i]] %<>% 
+        add_column(repeat_prop = repeat_outleirs[, i]) %>%
+        add_column(prop_greater_2x = prop_greater_2x[, i])
+}
+print(outliers, width = Inf)
+```
+
+

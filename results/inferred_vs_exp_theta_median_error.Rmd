@@ -1,0 +1,99 @@
+---
+title: "inferred_vs_experimental_theta"
+author: "Domenick Braccia"
+date: "8/7/2019"
+output: html_document
+---
+
+# Loading libraries and data
+
+```{r setup, include=FALSE}
+#libraries
+library(tidyverse)
+library(ggpubr)
+###
+cor_inf <- readRDS("../data/rel_abu_error_summary_inftheta.RDS")
+cor_exp <- readRDS("../data/rel_abu_error_summary_exptheta.RDS")
+uncor_inf <- readRDS("../data/uncorrected_rel_abu_error_summary_inftheta.RDS")
+uncor_exp <- readRDS("../data/uncorrected_rel_abu_error_summary_exptheta.RDS")
+```
+
+# Filtering data
+
+```{r, results='hide', fig.keep='all', warning=FALSE}
+plot_med_error <- function(pipeline, sample) {
+    #DATA FPROCESSING
+# uncorrected samples df
+uncor_inf_med_error <- uncor_inf %>%
+    filter(pipe == pipeline, biosample_id == sample) 
+uncor_inf_med_error <- uncor_inf_med_error$median_error
+uncor_exp_med_error <- uncor_exp %>%
+    filter(pipe == pipeline, biosample_id == sample) 
+uncor_exp_med_error <- uncor_exp_med_error$median_error
+uncor_df <- as.data.frame(cbind(uncor_inf_med_error, uncor_exp_med_error))
+
+# corrected samples df
+cor_inf_med_error <- cor_inf %>%
+    filter(pipe == pipeline, biosample_id == sample) 
+cor_inf_med_error <- cor_inf_med_error$median_error
+cor_exp_med_error <- cor_exp %>%
+    filter(pipe == pipeline, biosample_id == sample) 
+cor_exp_med_error <- cor_exp_med_error$median_error
+cor_df <- as.data.frame(cbind(cor_inf_med_error, cor_exp_med_error))
+
+#PLOTTING 
+# uncorrected samples plot
+uncor_plot <- ggplot(uncor_df, aes(x = uncor_exp_med_error, y = uncor_inf_med_error)) + 
+    geom_point(alpha = 0.3) + 
+    geom_abline(intercept = 0, slope = 1) +
+    theme_bw() 
+# corrected samples plot
+cor_plot <- ggplot(cor_df, aes(x = cor_exp_med_error, y = cor_inf_med_error)) + 
+    geom_point(alpha = 0.3) + 
+    geom_abline(intercept = 0, slope = 1) +
+    theme_bw()
+
+#zoomed in plots2
+uncor_plot_zoomed <- ggplot(uncor_df, aes(x = uncor_exp_med_error, y = uncor_inf_med_error)) +
+    geom_point(alpha = 0.3) +
+    geom_abline(intercept = 0, slope = 1) +
+    theme_bw() + xlim(0, 1) + ylim(0, 1)
+cor_plot_zoomed <- ggplot(cor_df, aes(x = cor_exp_med_error, y = cor_inf_med_error)) +
+    geom_point(alpha = 0.3) +
+    geom_abline(intercept = 0, slope = 1) +
+    theme_bw()+ xlim(0, 1) + ylim(0, 1)
+
+# ggarranged plot
+arranged <- ggarrange(uncor_plot, cor_plot,
+                uncor_plot_zoomed, cor_plot_zoomed,
+                nrow = 2, ncol = 2)
+annotate_figure(arranged,
+                top = paste(pipeline, " & ", sample))
+}
+# E01JH0004
+plot_med_error(pipeline = "dada2", sample = "E01JH0004")
+plot_med_error(pipeline = "mothur", sample = "E01JH0004")
+plot_med_error(pipeline = "qiime", sample = "E01JH0004")
+
+# E01JH0011
+plot_med_error(pipeline = "dada2", sample = "E01JH0011")
+plot_med_error(pipeline = "mothur", sample = "E01JH0011")
+plot_med_error(pipeline = "qiime", sample = "E01JH0011")
+
+# E01JH0016
+plot_med_error(pipeline = "dada2", sample = "E01JH0016")
+plot_med_error(pipeline = "mothur", sample = "E01JH0016")
+plot_med_error(pipeline = "qiime", sample = "E01JH0016")
+
+# E01JH0017
+plot_med_error(pipeline = "dada2", sample = "E01JH0017")
+plot_med_error(pipeline = "mothur", sample = "E01JH0017")
+plot_med_error(pipeline = "qiime", sample = "E01JH0017")
+
+# E01JH0038
+plot_med_error(pipeline = "dada2", sample = "E01JH0038")
+plot_med_error(pipeline = "mothur", sample = "E01JH0038")
+plot_med_error(pipeline = "qiime", sample = "E01JH0038")
+```
+
+
