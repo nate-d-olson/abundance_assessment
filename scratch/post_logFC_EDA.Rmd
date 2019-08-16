@@ -1,20 +1,35 @@
 ---
-title: "post logFC EDA"
+title: "post logFC Analysis"
 author: "Nate Olson"
-date: "8/9/2019"
-output: html_document
+date: '`r Sys.Date()`'
+output: 
+    bookdown::pdf_document2:
+        df_print: paged
 ---
 
 # Summary
-Analysis of post-exposure specific feature performance.
+Analysis of post-exposure specific feature differential abundance assessment metrics. 
+Post-exposure specific features are features only observed in all four post-exposure unmixed sample PCR replicates and either not observed in any of the pre-exposure unmixed sample PCR replicates or has a logFC less than -5. 
+Due to the limited number of post-specific and post-dominant features per individual and pipeline we are unable to evaluate pipeline performance. 
+As expected the assessment metrics improved with increasing post-exposure relative abundance, for features with relative abundance < 0.01. 
+For features with relative abundance greater than 0.01 assessment metric performance varied. If we want to include this analysis in the manuscript we will want to look into this further. 
 
-* Feature characterization
-    - Number of features by sample and pipeline
+
+__Recommendations__  
+Add text describing the post-feature differential abundance assessment to the manuscript and include the feature-level assessment metrics expected versus estimated logFC plot for example features and relationship between assessment metrics and post-relative abundance in supplemental. 
+
+# Analysis 
+
+__Outline__  
+
+* characterization of post-exposure features  
     - MA plots for post specific features
-* Individual feature performance
-    * logFC exp V est - with lm fit
-    * feature level metrics
+    - Number of features by sample and pipeline  
+* Individual feature performance  
+    * expected versus estimated logFC for pairwise titration comparisons
+    * feature level differential abundance assessment metrics
 * Global feature performance
+    * Distribution of feature-level differential abundance assessment metrics by pipeline and individual.  
 
 ## Loading packages and data
 Source data generated using `2017-10-19_logFC-error-metrics_post.Rmd` in this project's `secondary_analysis` directory.
@@ -29,7 +44,7 @@ logFC_feature_summary <- readRDS("data/logFC_post_feature_summary.RDS") %>%
 
 ## Feature Characterization
 
-```{r fig.cap = "MA plot of post-specific and -dominant features for pre- and post-exposure samples. The dashed grey line indicates the -5 logFC threshold used to identify post-dominant features."}
+```{r fig.cap = "MA plot of post-specific and post-dominant features for pre- and post-exposure samples. The dashed grey line indicates the -5 logFC threshold used to identify post-dominant features."}
 logFC_post %>% 
     filter(T1 == 0, T2 == 20) %>% 
     ggplot() + 
@@ -42,11 +57,10 @@ logFC_post %>%
 ```
 
 
-__Observations__    
-- Featues with logFC > 0  
-- limited number of features few with logFC greater than 10, therefore should limit evaluations to those with logFC < 5.  
-- No clear individual level effects  
-- DADA2 has the greatest number of post-specific features, features observed in post-exposure samples but not pre-exposure samples.
+__Observations__   
+
+- Limited number of features with logFC less than -10, potential impact on differential abundance performance with expected logFC < -10.   
+- DADA2 has the greatest number of post-specific features, orange points in figure, features observed in post-exposure samples but not pre-exposure samples.  
 
 ```{r}
 logFC_post %>% 
@@ -60,9 +74,10 @@ logFC_post %>%
 ```
 
 __Observations__  
-- DADA2 had the most post-specific and post-dominant features across pipelines.  
-- Similar trend in number of features per individual was observed across pipelines.  
-- Not enough features for individual level analysis except for maybe E01JH0016 and E01JH0038.  
+
+- DADA2 has the most post-specific and post-dominant features across pipelines.   
+- Similar trend in features per individual observed across pipelines, e.g. E01JH0016 has the most post-specific and post-dominant features across pipelines.   
+- Potentially enough E01JH0016 and E01JH0038 features for individual level analysis.   
 
 ## Example Individual Feature Performance
 
@@ -93,8 +108,9 @@ logFC_post %>%
 
 
 __Observations__  
-- Performance increases with logCPM. 
-- Grouping observed in logFC associated with comparisons between titrations < 5 and > 5 (see plots below).
+
+- Performance increases with logCPM.  
+- Grouping observed in logFC associated with comparisons between titrations < 5 and > 5 (see plots below).  
 
 
 ```{r}
@@ -137,15 +153,6 @@ library(trelliscopejs)
 logFC_post %>% 
     filter(T1 != 0, T2 != 20) %>% 
     left_join(logFC_feature_summary) %>% 
-    # mutate(feature_id = paste(feature_id,
-    #                           "\nlogFC:",
-    #                           round(prepost_logFC,2), 
-    #                           "\nlogCPM:", 
-    #                           round(prepost_logCPM,2),
-    #                           "\nAdjusted R^2:",
-    #                           round(adj.r.squared,2),
-    #                           "\n1-Slope:",
-    #                           round(slope_error, 2))) %>% 
     mutate(feature_id = fct_reorder(feature_id, post_nb)) %>% 
     ggplot() + 
     geom_abline(aes(slope = 1, intercept = 0), color = "darkblue") + 
@@ -179,9 +186,11 @@ logFC_post %>%
 ```
 
 __Observations__  
-- Only able to comment on trends due to limited number of features. 
-- Individual has a greater effect than pipeline, this is attributed to variability in the difference in prokaryotic DNA proportion for the unmixed samples across individuals. 
-- E01JH0038 had R2 and slope metrics closet to the expected values.
+
+- Only able to comment on trends due to limited number of features.  
+- Individual has a greater effect than pipeline, this is attributed to variability in the difference in prokaryotic DNA proportion for the unmixed samples across individuals.  
+- E01JH0038 had R2 and slope metrics closet to the expected values.  
+
 
 
 ```{r warning = FALSE, fig.caption = "Relationship between feature characteristics on logFC assessment metrics. prepost_logFC and prepost_logCPM are the edgeR logFC and logCPM estimates for the unmixed pre- and post-exposure samples. T20 is the number of non-zero unmixed pre-exposure PCR replicates. pa_mixed is the number of non-zero titrations."}
@@ -201,10 +210,11 @@ logFC_post %>%
     labs(color = "Individual", shape = "Pipeline")
 ```
 
-__Observations__
-- More negative logFC values for the pre-post comparison tends to improve error metrics, as expected. Though only to a point, this is likely an artifact of having a limited number of features with pre-post logFC < -7, potentially due to errors assocaited with the unmixed post relative abundance estimates (values might be overestimated ...).
-- logCPM for pre-post comparison is a better indicator of feature performance, again to a point, features with higher pre-post logCPM do not consistently perform better.
-- The number of non-zero unmixed pre-replicates does not correlate with logFC assessment metric performance, though number of non-zero mixed PCR replicates does. This is likely related to post relative abundance.
+__Observations__  
+
+- More negative logFC values for the pre-post comparison tends to improve error metrics, as expected. Though only to a point, this is likely an artifact of having a limited number of features with pre-post logFC < -7, potentially due to errors associated with the unmixed post relative abundance estimates (values might be overestimated ...).  
+- logCPM for pre-post comparison is a better indicator of feature performance, again to a point, features with higher pre-post logCPM do not consistently perform better.  
+- The number of non-zero unmixed pre-replicates does not correlate with logFC assessment metric performance, though number of non-zero mixed PCR replicates does. This is likely related to post relative abundance.  
 
 
 
@@ -231,4 +241,21 @@ logFC_post %>%
 
 
 __Observations__  
-- Excluding individual level differences, as expected, post-exposure unmixed sample feature relative abundance is the best indicator of logFC assessment feature performance.
+
+- Excluding individual level differences, as expected, post-exposure unmixed sample feature relative abundance is the best indicator of logFC assessment feature performance.  
+
+
+# Session Information
+## System Information
+```{r}
+sessioninfo::platform_info()
+```
+
+
+## Package Versions
+```{r}
+sessioninfo::package_info() %>% 
+    filter(attached == TRUE) %>% 
+    select(package, loadedversion, date, source) %>% 
+    knitr::kable(booktabs = TRUE)
+```
