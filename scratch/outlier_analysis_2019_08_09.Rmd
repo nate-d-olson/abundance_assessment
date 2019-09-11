@@ -1,0 +1,264 @@
+---
+title: "Outlier Analysis"
+author: "Domenick Braccia and Nate - but mostly Dom ;)"
+date: '`r Sys.Date()`'
+output: 
+    bookdown::pdf_document2:
+        df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+# Overview
+
+<!-- Here, outlier features from each of the three pipelines considered - dada2, mothur and qiime - are examined. Features are labeled outliers based on 6 different error metrics: "median_error", "iqr_error", "rcov_error", "mean_error", "var_error" and "cov_error"  -->
+
+### Retrieving saved data
+
+<!-- Data comes from relative abundance error metrics section of "relative_abundance_assessment_results.Rmd" file and is saved to the ~/data/ folder. Boxplots for each error metric are drawn from which outliers will be extracted and examined. -->
+
+```{r}
+# loading data saved from rel_abundance_est Rmd file #
+rel_abu_error <- readRDS(file = "data/rel_abu_error.RDS")
+rel_abu_error_summary <- readRDS(file = "data/rel_abu_error_summary.RDS")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+######################### MEDIAN ERROR ######################### 
+### Error rate boxplot and outlier annotation
+median_error_boxplot <- rel_abu_error %>% group_by(pipe, biosample_id, feature_id) %>%
+    summarise(median_error = median(inferred_error_rate)) %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = median_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Bias Metric", color = "Pipeline")
+
+## Annotating features as outliers based on boxplot
+median_plot_dat <- ggplot_build(median_error_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_median_dat <- median_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+med_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_median_dat) %>%
+    mutate(outlier_cat = if_else(median_error < ymin | median_error > ymax,
+                                 "outlier","inlier")) %>% 
+    select(-ymin) %>% 
+    rename(med_threshold = ymax,
+           med_cat = outlier_cat)
+
+######################### RCOV ERROR ###########################
+## Robust COV Analysis
+rcov_boxplot <- rel_abu_error_summary %>%
+    ggplot() +
+    geom_boxplot(aes(x = pipe, y = rcov_error, color = pipe), outlier.shape = NA) +
+    facet_wrap(~biosample_id, ncol = 1) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Pipeline", y = "Variance Metric", color = "Pipeline")
+
+## Annotating features as outliers based on boxplot
+rcov_plot_dat <- ggplot_build(rcov_boxplot)$data[[1]] %>%
+    mutate(pipe = fct_recode(factor(group),
+                             dada2 = "1",
+                             mothur = "2",
+                             qiime = "3",
+                             unclustered = "4"),
+           biosample_id = fct_recode(PANEL,
+                                     E01JH0004 = "1",
+                                     E01JH0011 = "2",
+                                     E01JH0016 = "3",
+                                     E01JH0017 = "4",
+                                     E01JH0038 = "5"))
+outlier_rcov_dat <- rcov_plot_dat %>%
+    dplyr::select(ymin, ymax, pipe, biosample_id)
+
+rcov_outlier_cat <- rel_abu_error_summary %>%
+    left_join(outlier_rcov_dat) %>%
+    mutate(outlier_cat = if_else(rcov_error < ymin | rcov_error > ymax,
+                                 "outlier","inlier")) %>% 
+    select(-ymin) %>% 
+    rename(rcov_threshold = ymax,
+           rcov_cat = outlier_cat)
+```
+
+
+
+```{r}
+## Combining median error and RCOV error dataframes 
+outlier_df <- rcov_outlier_cat %>% 
+    left_join(med_outlier_cat)
+```
+
+```{r}
+outlier_df %>% 
+    group_by(pipe, biosample_id, rcov_cat) %>% 
+    summarise(rcov_total = n()) %>% 
+    spread(rcov_cat, rcov_total) %>% 
+    mutate(rcov_prop = round(outlier/ inlier,2))
+```
+
+```{r}
+outlier_df %>% 
+    group_by(pipe, biosample_id, med_cat) %>% 
+    summarise(med_total = n()) %>% 
+    spread(med_cat, med_total) %>% 
+    mutate(med_prop = round(outlier/ inlier,2))
+```
+
+Only two features were outliers for both assessment metrics.  
+
+```{r}
+outlier_df %>% 
+    group_by(pipe, med_cat, rcov_cat) %>% 
+    summarise(count = n()) %>% 
+    spread(pipe, count, fill = 0)
+```
+
+
+
+# Plotting error distributions 
+
+Below are distributions of the feature level error metrics examined. The vertical line on each plot indicates the value at which features are labeled "outliers"
+
+__Median Error__
+```{r}
+med_outlier_cat %>% 
+    ggplot() + 
+    geom_histogram(aes(x = median_error), bins = 75) +
+    geom_vline(aes(xintercept = med_threshold)) + 
+    facet_grid(pipe ~ biosample_id, scales = "free") + 
+    theme_bw()
+        
+```
+
+__RCOV__  
+
+```{r}
+rcov_outlier_cat %>% 
+    ggplot() + 
+    geom_histogram(aes(x = rcov_error), bins = 75) +
+    geom_vline(aes(xintercept = rcov_threshold)) + 
+    facet_grid(pipe ~ biosample_id, scales = "free") + 
+    theme_bw()
+```
+
+
+```{r}
+rcov <- rcov_outlier_cat %>%
+    mutate(value = rcov_error) %>% 
+    rename(threshold = rcov_threshold,
+           outlier_cat = rcov_cat)
+med <- med_outlier_cat %>%
+    mutate(value = median_error) %>% 
+    rename(threshold = med_threshold,
+           outlier_cat = med_cat)
+long_outlier_df <- bind_rows(med = med, rcov = rcov, .id = "metric")
+
+long_outlier_df %>% 
+    filter(outlier_cat == "outlier") %>% 
+ggplot() +
+    geom_histogram(aes(x = value), bins = 75) + 
+    facet_grid(pipe~metric, scales = "free") + 
+    theme_bw()
+```
+
+Threshold values
+```{r}
+long_outlier_df %>% 
+    select(metric, pipe, biosample_id, threshold) %>% 
+    distinct() %>% 
+    mutate(threshold = round(threshold,2)) %>% 
+    spread(pipe, threshold)
+```
+
+## Relative Abundance Assessment Metric Quadrants
+
+```{r}
+rel_abu_error_summary %>%
+    ggplot() +
+    geom_point(aes(x = median_error, y = rcov_error, fill = log10(median_rel_abu)), pch = 21) +
+    geom_hline(aes(yintercept = 2), color = "darkorange") + 
+    geom_vline(aes(xintercept = 1), color = "darkorange") + 
+    facet_grid(biosample_id ~ pipe, scales = "free") + 
+    scale_fill_gradient(low = "white", high = "black") + 
+    theme_bw() + 
+    theme(legend.position = "bottom")
+```
+
+__Observations__  
+
+- Features with large assessment metrics tend to have lower median relative abundance but not always.  
+- It would be good to include some annecdotal observations about these features. 
+
+## Supplemental
+Feature relative abundance titration plot for example features from the four metric quadrants
+```{r}
+
+```
+
+
+## A Brief Look At Extreme Outliers
+
+Number of features with median error > 2 or RCOV > 5. 
+These values were identified based on visualization of metric distriubitons and represent edges of the distribution.
+```{r}
+extreme_outliers_df <- long_outlier_df %>% 
+    filter(median_error > 2 | rcov_error > 5)
+nrow(extreme_outliers_df)
+```
+
+```{r}
+long_outlier_df %>% 
+    mutate(extreme_cat = if_else(median_error > 2 | rcov_error > 5,
+                                 "extreme", outlier_cat)) %>% 
+    ggplot() + 
+    geom_point(aes(x = value, 
+                   y = median_rel_abu, 
+                   color = extreme_cat),
+               pch = 21) + 
+    geom_smooth(aes(x = value, 
+               y = median_rel_abu), se = FALSE) + 
+    facet_grid(pipe ~ metric, scales = "free") + 
+    theme_bw() + 
+    scale_y_log10() 
+```
+
+```{r}
+extreme_outliers_df %>% 
+    ggplot() + 
+    geom_point(aes(x = value, 
+                   y = median_rel_abu)) + 
+    facet_grid(pipe ~ metric, scales = "free") + 
+    theme_bw() + 
+    scale_y_log10() 
+```
+
+# Session Information
+## System Information
+```{r}
+sessioninfo::platform_info()
+```
+
+
+## Package Versions
+```{r}
+sessioninfo::package_info() %>% 
+    filter(attached == TRUE) %>% 
+    select(package, loadedversion, date, source) %>% 
+    knitr::kable(booktabs = TRUE)
+```

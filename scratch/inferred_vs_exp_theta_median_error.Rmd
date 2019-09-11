@@ -9,13 +9,14 @@ output: html_document
 
 ```{r setup, include=FALSE}
 #libraries
+library(here)
 library(tidyverse)
 library(ggpubr)
 ###
-cor_inf <- readRDS("../data/rel_abu_error_summary_inftheta.RDS")
-cor_exp <- readRDS("../data/rel_abu_error_summary_exptheta.RDS")
-uncor_inf <- readRDS("../data/uncorrected_rel_abu_error_summary_inftheta.RDS")
-uncor_exp <- readRDS("../data/uncorrected_rel_abu_error_summary_exptheta.RDS")
+cor_inf <- readRDShere("data","rel_abu_error_summary_inftheta.RDS")
+cor_exp <- readRDS(here("data","rel_abu_error_summary_exptheta.RDS")
+uncor_inf <- readRDS(here("data","uncorrected_rel_abu_error_summary_inftheta.RDS")
+uncor_exp <- readRDS(here("data","uncorrected_rel_abu_error_summary_exptheta.RDS")
 ```
 
 # Filtering data

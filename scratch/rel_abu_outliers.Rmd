@@ -1,0 +1,60 @@
+---
+title: "Relative Abundance Metric Outlier Analysis"
+---
+title: "post logFC Analysis"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output: 
+    bookdown::pdf_document2:
+        df_print: paged
+---
+
+# Summary
+
+
+
+__Recommendations__  
+
+
+# Analysis 
+
+__Outline__  
+
+
+## Loading packages and data
+Source data generated using `relative_abundance_assessment_results.Rmd` in this project's `results` directory.
+```{r, message=FALSE, echo = FALSE}
+library(tidyverse)
+rel_abu_error <- readRDS(file = "data/rel_abu_error.RDS")
+rel_abu_error_summary <- readRDS(file = "data/rel_abu_error_summary.RDS")
+```
+
+
+## Analysis Title
+
+```{r fig.cap = "Caption"}
+## Code for fig or table
+```
+
+
+
+__Observations__  
+
+- A  
+- B  
+
+
+# Session Information
+## System Information
+```{r}
+sessioninfo::platform_info()
+```
+
+
+## Package Versions
+```{r}
+sessioninfo::package_info() %>% 
+    filter(attached == TRUE) %>% 
+    select(package, loadedversion, date, source) %>% 
+    knitr::kable(booktabs = TRUE)
+```

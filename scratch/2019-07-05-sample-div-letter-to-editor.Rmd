@@ -1,0 +1,96 @@
+---
+title: "PCA Analysis for letter to the editor"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+
+
+```{r samCompSetup, include=FALSE}
+library(tidyverse)
+library(phyloseq)
+library(ggpubr)
+```
+
+```{r}
+unfix_post_samples <- function(ps){
+  sam_data <- sample_data(ps) %>% 
+    mutate(biosample_id_fix = case_when(
+                              t_fctr == 0 & biosample_id == "E01JH0004" ~ "E01JH0011", 
+                              t_fctr == 0 & biosample_id == "E01JH0011" ~ "E01JH0016", 
+                              t_fctr == 0 & biosample_id == "E01JH0016" ~ "E01JH0017", 
+                              t_fctr == 0 & biosample_id == "E01JH0017" ~ "E01JH0004", 
+                              TRUE ~ biosample_id
+    ))
+  sample_data(ps)$biosample_id <- sam_data$biosample_id_fix
+  
+  ps
+}
+
+get_ps <- function() {
+  dada_ps <- readRDS("data/dada2_ps.rds")
+  samples_to_keep <- sample_names(dada_ps) %>% {.[. != "1-F9"]}
+  dada_ps <- prune_samples(samples = samples_to_keep, x = dada_ps)
+  uncorrected_ps <- unfix_post_samples(dada_ps)
+  
+  list(Uncorrected   = uncorrected_ps,
+       Corrected = dada_ps)
+}
+
+get_titrations_ps <- function(ps){
+  titration_ps <- subset_samples(ps, 
+                                 t_fctr %in% c(20,15,10,5,4,3,2,1,0)) %>% 
+    {prune_taxa(taxa_sums(.) > 0, .)}
+
+  sample_data(titration_ps)$Titration <- factor(sample_data(titration_ps)$t_fctr,
+                                                levels = c(20,15,10,5,4,3,2,1,0))
+  
+  titration_ps
+}
+
+
+titrations_beta_plot <- function(titration_ps, pipeline){
+  titration_ord <- ordinate(titration_ps, "PCoA", "bray")
+  beta_plot <- plot_ordination(physeq = titration_ps, titration_ord, 
+                type = "sample", shape = "biosample_id", color = "Titration") +
+      theme_bw() +
+      ggtitle(pipeline) + 
+      labs(color = "Titration", shape = "Individual")
+  return(beta_plot)
+}
+```
+
+
+```{r}
+ps_list <- get_ps()
+
+## Titrations
+titrations_ps_list <- ps_list %>% map(get_titrations_ps)
+
+titrations_beta_plots <- map2(titrations_ps_list, 
+                            names(ps_list), 
+                            titrations_beta_plot)
+```
+
+
+## Combined Plots
+
+```{r}
+ggarrange(plotlist = c(titrations_beta_plots), 
+          ncol = 1, nrow = 2, legend = "right",
+          common.legend = TRUE, 
+          labels = "AUTO")
+ggsave("titrations_beta_div_pipe_comp.png", width = 200, height = 300, units = "mm",)
+```
+
+
+# Session information
+```{r}
+# s_info <- devtools::session_info()
+# print(s_info$platform)
+# s_info$packages %>% filter(`*` == "*") %>% select(-`*`) %>% 
+#       knitr::kable()
+```
