@@ -1,12 +1,15 @@
 ---
 title: "new-figures-DJB"
 author: "Domenick Braccia"
-date: "4/5/2019"
-output: pdf_document
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(here)
 library(tidyverse)
 library(ggpubr)
 ```
@@ -17,14 +20,18 @@ Contributing to the figures for mgtst-pub
 
 The data being loaded below comes from running the bayesian hypothesis tests with a beta prior at various parameterizations of shape parameters alpha and beta. 
 
-```{r get data, message=FALSE, warning=FALSE}
+```{r get_data, message=FALSE, warning=FALSE}
 # loading results of bayesian hypothesis tests
-test_files <- list.files("../data/mix_bayes_res/corrected")
-all_tests <- data.frame(vector("numeric", 14380)) # manually setting number of rows for subject "E01JH0004"
+test_files <- here("data","mix_bayes_res","corrected") %>%  
+   list.files(full.names = TRUE)
+
+# manually setting number of rows for subject "E01JH0004"
+all_tests <- data.frame(vector("numeric", 14380)) 
 for ( i in 1:length(test_files) ) {
       # loading in current results into one data frame
-      current <- readRDS(paste("../data/mix_bayes_res/corrected/", test_files[i], sep = "")) %>% 
-            filter(biosample_id == "E01JH0004") # only making figure for 1 subject to illustate point
+      current <- readRDS(test_files[i]) %>% 
+            # only making figure for 1 subject to illustate point
+            filter(biosample_id == "E01JH0004") 
       if (i == 1) {
             all_tests[, i] <- current$pipe
             colnames(all_tests)[i] <- "pipe"
@@ -32,7 +39,9 @@ for ( i in 1:length(test_files) ) {
       all_tests[, i+1] <- current$adj.pvalue
       
       # changing names of columns
-      colnames(all_tests)[i+1] <- paste("params_", strsplit(strsplit(test_files[i], split = "test_")[[1]][2], "[.]")[[1]][1], sep = "")
+      param_val <- test_files[i] %>% 
+         strsplit(strsplit(test_files[i], split = "test_")[[1]][2], "[.]")[[1]][1]
+      colnames(all_tests)[i+1] <- paste("params_", )
 }
 
 #selecting columns with alpha = 1:2 and beta = 1:2
