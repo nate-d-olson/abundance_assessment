@@ -9,6 +9,7 @@ output:
 
 ```{r seqSetup, warning=FALSE, message=FALSE, echo = FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(here)
 library(Rqc)
 library(tidyverse)
 library(stringr)
@@ -38,7 +39,7 @@ read_groups[grepl("/1-.*_R2", dat_files)] <- "plate1_R2"
 read_groups[grepl("/2-.*_R1", dat_files)] <- "plate2_R1"
 read_groups[grepl("/2-.*_R2", dat_files)] <- "plate2_R2"
 
-qa_list <- readRDS("data/rqcQA_list.rds")
+qa_list <- readRDS(here("data","rqcQA_list.rds")
 ```
 
 ```{r metadat, warning=FALSE, message=FALSE, echo = FALSE}
@@ -56,18 +57,20 @@ qa_file_info <- perFileInformation(qa_list) %>%
     dplyr::select(-format,-path)
 
 ## study metadata
-load("cache/sampleSheet.RData")
+sampleSheet <- read_tsv(here("data","mgtstMetadata.tsv"))
 
 meta_df <- sampleSheet %>%
-    mutate(pos_ns = str_replace(pos, "_",""),
-           ill_id = paste(pcr_16S_plate, pos_ns, sep = "-")) %>%
-    filter(seq_lab == "JHU", barcode_lab == "JHU") %>%
+    mutate(ill_id = paste(pcr_16S_plate, pos, sep = "-")) %>%
+    filter(seq_lab == "jhu") %>%
     mutate(pcr_16S_plate = as.character(pcr_16S_plate)) %>%
     left_join(grp_df) %>% left_join(qa_file_info)
 
 ## Library sizes
-lib_size <- meta_df %>% filter(Read == "R1", biosample_id != "NTC", reads != 2700) %>% .$reads
+lib_size <- meta_df %>% 
+  filter(Read == "R1", biosample_id != "NTC", reads != 2700) %>% 
+  .$reads
 ```
+
 
 ```{r cycle_metrics, warning=FALSE, message=FALSE, echo = FALSE}
 ## amplicon position __Cycle Level Metrics__
@@ -84,9 +87,9 @@ qa_cycle_q_df <- qa_list %>% map_df(perCycleQuality) %>%
 
 ```{r pipeMunge, echo = FALSE}
 mrexp_files <- list(
-      dada2 = "data/dada_mrexp.rds",
-      mothur =  "mothur/mothur_mrexp.rds",
-      qiime =  "qiime/qiime_mrexp.rds"
+      dada2 = here("data","dada_mrexp.rds",
+      mothur =  here("data","mothur_mrexp.rds",
+      qiime =  here("data","qiime_mrexp.rds"
 )
 mrexp <- mrexp_files %>% map(readRDS)
 #
@@ -246,8 +249,9 @@ qual_fig <- qa_cycle_q_df %>%
 ggarrange(lib_size_fig, qual_fig, ncol = 1, nrow = 2,
           labels = "AUTO", common.legend = TRUE, align = "v", legend = "bottom")
 ```
-```{r}
-ggsave("~/Projects/MGTST-Manuscript/qaPlots-1.pdf", width = 170, units = "mm")
+
+```{r echo = FALSE, message = FALSE}
+ggsave(here("fig","qaPlots-1.pdf", width = 170, units = "mm")
 ```
 
 
@@ -288,7 +292,8 @@ ggarrange(feat_v_reads, feat_box, ncol = 1, nrow = 2,
 
 ```{r pipeTaxa, warning=FALSE, message = FALSE, echo = FALSE, fig.width = 6.68, fig.cap = "Comparison of dataset taxonomic composition across pipelines. Phylum (A) and Order (B) relative abundance by pipeline. Taxonomic groups with less than 1\\% total relative abundance were grouped together and indicated as other.  Pipeline genus-level taxonomic assignment set overlap for the all features (C) and the upper quartile genera by relative abundance for each pipeline (D)."}
 
-taxa_df <- readRDS("data/taxa_df.RDS") %>% 
+taxa_df <- here("data","taxa_df.RDS") %>% 
+  readRDS() %>% 
       ungroup() %>% 
       mutate(pipe = forcats::fct_recode(pipe, 
                                         DADA2 = "dada2", 

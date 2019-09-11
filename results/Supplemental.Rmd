@@ -8,6 +8,7 @@ output:
 ---
 ```{r suppSetUp, include = FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(here)
 library(tidyverse)
 library(ggridges)
 library(ggpubr)
@@ -17,7 +18,7 @@ library(ggpubr)
 # Theta Inferrence
 ```{r loadTheta}
 ## Data frame saved by theta_estimate_results.Rmd
-theta_est_df <- readRDS("results/data/theta_est_df.RDS")
+theta_est_df <- here("data","theta_est_df.RDS") %>% readRDS()
 ```
 
 
@@ -35,7 +36,7 @@ theta_est_df %>% ungroup() %>%
 \newpage
 # Relative Abundance
 ```{r loadRelAbu}
-prop_inferred <- readRDS("results/data/prop_inferred.RDS")
+prop_inferred <- here("data","prop_inferred.RDS") %>% readRDS()
 ```
 
 ```{r relAbuFeatTbl}
@@ -68,7 +69,7 @@ prop_inferred %>%
 # log Fold-Change
 
 ```{r loadLogFC, include = FALSE}
-logFC_pre <- readRDS("data/logFC_pre.RDS")
+logFC_pre <- here("data","logFC_pre.RDS") %>% readRDS()
 ```
 
 ```{r logFcCountTbl, echo = FALSE}
@@ -78,7 +79,8 @@ logFC_pre %>% filter(T1 == 0, T2 == 20) %>%
       summarise(count = n()) %>%
       spread(pipe, count,fill = 0) %>%
       dplyr::rename(Individual = biosample_id) %>%
-      knitr::kable(caption = "Number of PRE-specific and PRE-dominant features by individual and pipeline", booktabs = TRUE)
+      knitr::kable(caption = "Number of PRE-specific and PRE-dominant features by individual and pipeline", 
+                   booktabs = TRUE)
 ```
 
 \newpage
@@ -95,12 +97,13 @@ logFC_pre %>%
 ```{r supLogFCmunge, include = FALSE}
 ### Loading Data ---------------------------------------------------------------
 ### RDS file generated in 2017-10-19_logFC-error-metrics.RDS
-logFC_pre <- readRDS("data/norm_logFC_pre.RDS")
+logFC_pre <- here("data","norm_logFC_pre.RDS") %>% readRDS()
 
 logFC_pre$norm_method <- logFC_pre$norm
 logFC_pre$norm <- NULL
 
-logFC_feature_summary <- readRDS("data/norm_logFC_feature_summary.RDS") %>%
+logFC_feature_summary <- here("data","norm_logFC_feature_summary.RDS") %>% 
+   readRDS() %>%
       mutate(slope_error = 1 - slope)
 
 logFC_feature_summary$norm_method <- logFC_pre$norm

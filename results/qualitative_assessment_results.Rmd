@@ -9,16 +9,17 @@ output:
 
 
 ```{r qualSetup, include=FALSE}
+library(here)
 library(tidyverse)
 library(broom)
 library(ggpubr)
 
-raw_counts <- readRDS("data/raw_counts.RDS")
-nb_counts <- readRDS("data/nb_counts_titrations.RDS")
-pa_summary_anno_df <- readRDS("data/pa_summary_anno_df.RDS")
-theta_est <- readRDS("data/bootstrap_theta_estimates.rds")
-mix_binom_tidy <- readRDS("data/mix_bayes_test.RDS")
-unmix_binom_tidy <- readRDS("data/unmix_binom_test.RDS")
+raw_counts <-here("data","raw_counts.RDS") %>% readRDS()
+nb_counts <-here("data","nb_counts_titrations.RDS") %>% readRDS()
+pa_summary_anno_df <-here("data","pa_summary_anno_df.RDS") %>% readRDS()
+theta_est <-here("data","bootstrap_theta_estimates.rds") %>% readRDS()
+mix_binom_tidy <-here("data","mix_bayes_test.RDS") %>% readRDS()
+unmix_binom_tidy <-here("data","unmix_binom_test.RDS") %>% readRDS()
 ```
 
 ```{r qualMunge, message = FALSE, echo = FALSE, warning = FALSE}
@@ -162,6 +163,6 @@ ggarrange(mix_count_plot + rremove("x.text"), unmix_count_plot + rremove("x.text
           ncol = 2, nrow = 2, heights = c(4, 5))
 ```
 
-```{r}
-ggsave("figs/qualPlot-1.pdf", width = 170, units = "mm")
+```{r echo = FALSE, message = FALSE}
+ggsave(here("figs"," qualPlot-1.pdf"), width = 170, units = "mm")
 ```

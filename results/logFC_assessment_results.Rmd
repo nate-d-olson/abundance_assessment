@@ -10,6 +10,7 @@ output:
 
 
 ```{r logFCsetup, include=FALSE}
+library(here)
 library(nlme)
 library(ape)
 library(multcomp)
@@ -22,9 +23,10 @@ library(ggpubr)
 ```{r logFCmunge, include = FALSE}
 ### Loading Data ---------------------------------------------------------------
 ### RDS file generated in 2017-10-19_logFC-error-metrics.RDS
-logFC_pre <- readRDS("data/logFC_pre.RDS")
+logFC_pre <- here("data", "logFC_pre.RDS") %>% readRDS()
 
-logFC_feature_summary <- readRDS("data/logFC_feature_summary.RDS") %>%
+logFC_feature_summary <- here("data","logFC_feature_summary.RDS") %>%
+      readRDS() %>% 
       mutate(slope_error = 1 - slope)
 
 ### logFC Est v. Exp Regression ------------------------------------------------
@@ -165,8 +167,8 @@ ggarrange(logFCestVexp,
           ncol = 1, nrow = 2, common.legend = TRUE, legend = "bottom")
 ```
 
-```{r}
-ggsave("figs/logFCerror-1.pdf", width = 170, units = "mm")
+```{r echo = FALSE, message = FALSE}
+ggsave(here("figs","logFCerror-1.pdf"), width = 170, units = "mm")
 ```
 
 ```{r logFcErrorMetrics, fig.width = 6.68, fig.cap = "Feature-level log-fold change error bias (A) and variance (B) metric distribution by subject and pipeline. The bias ($1 - slope$) and variance ($R^2$) metrics are derived from the linear model fit to the estimated and expected log fold-change values for individual features. Boxplot outliers, $1.5\\times IQR$ from the median were excluded from the figure to prevent extreme metric values from obscuring metric value visual comparisons.", echo = FALSE, warning=FALSE, message = FALSE}
@@ -214,8 +216,8 @@ ggarrange(slope_logFC + rremove("x.text") + rremove("xlab"),
           align = "v",labels = "AUTO")
 ```
 
-```{r}
-ggsave("figs/logFcErrorMetrics-1.pdf", width = 170, units = "mm")
+```{r echo = FALSE, message = FALSE}
+ggsave(here("figs", "logFcErrorMetrics-1.pdf"), width = 170, units = "mm")
 ```
 
 
@@ -265,10 +267,6 @@ logFCexample %>%
       theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
       labs(x = "Expected", y = "Estimate") +
       theme(legend.position = "none")
-ggsave("figs/diff_abu_metrics.pdf", height = 3, width = 5)
-```
-
-```{r}
-logFCestVexp
+ggsave(here("figs","diff_abu_metrics.pdf"), height = 3, width = 5)
 ```
 

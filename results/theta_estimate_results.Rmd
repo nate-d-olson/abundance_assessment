@@ -9,6 +9,7 @@ output:
 
 ```{r thetaSetup, warning=FALSE, message=FALSE, echo = FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(here)
 library(tidyverse)
 library(stringr)
 library(modelr)
@@ -16,10 +17,10 @@ library(modelr)
 
 ```{r thetaMunge, warning=FALSE, message=FALSE, echo = FALSE}
 ## Raw counts
-raw_counts <- readRDS("data/raw_counts.RDS")
+raw_counts <- here("data","raw_counts.RDS") %>% readRDS()
 
 ## Negative Binomial Summaries
-nb_counts <- readRDS("data/nb_counts_titrations.RDS")
+nb_counts <- here("data", "nb_counts_titrations.RDS") %>% readRDS()
 
 ## Pre-Post Expected Counts
 pre_post <- nb_counts %>%
@@ -38,7 +39,7 @@ pre_post_exp_count <- pre_post %>%
 
 ####### Feature Filters
 ## PA - excluding features observed in less than 14 mixed sample PCR replicates
-pa_summary_anno_df <- readRDS("data/pa_summary_anno_df.RDS")
+pa_summary_anno_df <- here("data","pa_summary_anno_df.RDS") %>% readRDS()
 
 pa_good <- pa_summary_anno_df %>%
       ## Features present in all 4 PCR replicates for unmixed pre and/or post
@@ -48,7 +49,8 @@ pa_good <- pa_summary_anno_df %>%
 
 
 ## logFC > 1 between pre and post with a p-value < 0.05
-pre_post_logFC_df <- readRDS("data/logFC_edgeR_df.RDS") %>%
+pre_post_logFC_df <- here("data","logFC_edgeR_df.RDS") %>% 
+  readRDS() %>%
       ## Go back and change when logFC generated
       dplyr::rename(feature_id = OTUname) %>%
       dplyr::select(pipe, biosample_id, T1, T2, feature_id,
@@ -71,7 +73,7 @@ theta_est_df <- count_good %>%
              t_fctr, count, post_count, pre_count, total_count)
 
 ### Save data frame for supplemental
-saveRDS(theta_est_df, "results/data/theta_est_df.RDS")
+saveRDS(theta_est_df, here("data","theta_est_df.RDS"))
 ```
 
 ```{r fitModel, warning=FALSE, message=FALSE, echo = FALSE}
@@ -129,7 +131,7 @@ calc_boot_theta <- function(boot_theta_file, count_nb_good){
       boot_theta_hat
 }
 
-boot_theta_file <- "data/bootstrap_theta_estimates.RDS"
+boot_theta_file <- here("data","bootstrap_theta_estimates.RDS")
 boot_theta_hat <- calc_boot_theta(boot_theta_file, theta_est_df)
 ```
 
