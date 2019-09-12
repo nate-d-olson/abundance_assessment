@@ -1,0 +1,127 @@
+---
+title: "Sparsity by Subject"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+```{r}
+library(here)
+library(metagenomeSeq)
+library(tidyverse)
+
+mrexp <- list(dada2 = here("data", "dada2_mrexp.rds"),
+              mothur =  here("data", "mothur_mrexp.rds"),
+              qiime =  here("data", "qiime_mrexp.rds"),
+              unclustered = here("data", "unclustered_mrexp.rds")) %>%
+    map(readRDS)
+```
+
+```{r}
+extract_samples <- function(mrobj){
+      sam_names <- pData(mrobj) %>% rownames_to_column() %>%
+            filter(biosample_id != "NTC") %>% .$rowname
+      mrobj[,colnames(mrobj) %in% sam_names]
+}
+
+extract_biosample <- function(mrobj, biosample){
+      mrobj[,pData(mrobj)$biosample_id == biosample]
+}
+
+filter_singletons <- function(mrobj){
+     mrobj[rowSums(mrobj) > 1,]
+}
+
+calc_sparsity <- function(mat){
+      nentry <- length(mat)
+      nzero <- sum(mat == 0)
+      ## calculate sparsity
+      nzero/nentry
+}
+
+sparsity <- mrexp %>% 
+    map(extract_samples) %>% 
+      map(MRcounts, norm = FALSE, log = FALSE, sl = 1) %>% 
+      map_dbl(calc_sparsity)
+sparsity
+```
+
+- Sparsity with and without singletons
+- sparsity by subject
+- sparsity by PCR rep
+
+## singletons 
+```{r}
+singletons <- map_int(mrexp, ~sum(rowSums(.) == 1))
+data_frame(pipe = names(mrexp), singletons)
+```
+
+
+## Sparsity by subject
+```{r}
+get_individual_sparsity <- function(mrobj, biosample_id){
+    ## Extract count matrix and sample metadata
+    count_mat <- MRcounts(mrobj, 
+                          norm = FALSE,
+                          log = FALSE,
+                          sl = 1)
+    sam_data_df <- pData(mrobj) %>% as.data.frame()
+    
+    ## Subset by biosample
+    ids <- sam_data_df[sam_data_df$biosample_id == biosample_id,]$id
+    biosam_mat <- count_mat[,ids] 
+    
+    ## Remove unobserved features
+    biosam_mat <- biosam_mat[rowSums(biosam_mat) != 0,]
+    
+    print(dim(biosam_mat))
+    
+    calc_sparsity(biosam_mat)
+}
+
+biosample_id_list <- list(
+    "E01JH0004" = "E01JH0004",
+    "E01JH0011" = "E01JH0011",
+    "E01JH0016" = "E01JH0016",
+    "E01JH0017" = "E01JH0017",
+    "E01JH0038" = "E01JH0038"
+)
+
+pipe <- rep(names(mrexp), each = length(biosample_id_list))
+mrexp_col <- rep(mrexp, each = length(biosample_id_list))
+biosample_id <- rep(names(biosample_id_list), length(mrexp))
+biosample_id_col <- rep(biosample_id_list, length(mrexp))
+
+subject_sparsity_df <- data_frame(
+        pipe, mrexp = mrexp_col, biosample_id, biosample_id_list = biosample_id_col)%>% 
+    mutate(sparsity = map2_dbl(mrexp, 
+                               biosample_id_list,
+                               get_individual_sparsity))
+
+overall_sparsity <- as.data.frame(sparsity) %>% 
+    add_column(biosample_id = "Overall", .before = 1) %>% 
+    rownames_to_column(var = "pipe")
+
+tidy_sparsity <- subject_sparsity_df %>%
+    select(-mrexp, -biosample_id_list) %>%
+    bind_rows(overall_sparsity) %>% 
+    mutate(sparsity = round(sparsity, 2)) %>% 
+    spread(pipe, sparsity) 
+
+colnames(tidy_sparsity) <- c("Individual","DADA2",
+                                   "Mothur","QIIME","Unclustered")
+```
+```{r}
+tidy_sparsity
+```
+
+
+```{r results = "asis"}
+tidy_sparsity %>% 
+    knitr::kable(format = "latex")
+```
+
+
+
