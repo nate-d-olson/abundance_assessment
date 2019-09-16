@@ -129,6 +129,77 @@ r2_p <- r2_anova$`p-value`
 r2_var <- ape::varcomp(r2_fit)
 ```
 
+## Stats Results
+__BIAS__
+```{r}
+summary(slope_fit)
+```
+
+
+```{r}
+dada_slope
+```
+
+```{r}
+mothur_slope
+```
+
+
+```{r}
+qiime_slope
+```
+
+```{r}
+slope_var
+```
+
+```{r}
+slope_anova
+```
+
+```{r}
+slope_f
+```
+
+```{r}
+slope_p
+```
+
+__Variance__
+```{r}
+summary(r2_fit)
+```
+
+```{r}
+dada_r2
+```
+
+```{r}
+mothur_r2
+```
+
+
+```{r}
+qiime_r2
+```
+
+```{r}
+r2_var
+```
+
+```{r}
+r2_anova
+```
+
+```{r}
+r2_f
+```
+
+```{r}
+r2_p 
+```
+
+
 
 ```{r logFCerror, fig.width = 6.68, fig.cap = "(A) Linear model or the relationship between log fold-change estimates and expected values for PRE-specific and PRE-dominant features by pipeline and individual, line color indicates pipelines. Dashed grey line indicates expected 1-to-1 relationship between the estimated and expected log fold-change. (B) Log fold-change error (|exp-est|) distribution by pipeline and individual.", echo = FALSE, warning=FALSE, message = FALSE}
 
@@ -217,7 +288,7 @@ ggarrange(slope_logFC + rremove("x.text") + rremove("xlab"),
 ```
 
 ```{r echo = FALSE, message = FALSE}
-ggsave(here("figs", "logFcErrorMetrics-1.pdf"), width = 170, units = "mm")
+ggsave(here("figs", "logFCErrorMetrics-1.pdf"), width = 170, units = "mm")
 ```
 
 
