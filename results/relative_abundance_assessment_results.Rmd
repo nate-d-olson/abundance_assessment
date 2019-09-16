@@ -5,10 +5,10 @@ date: '`r Sys.Date()`'
 output:
   bookdown::pdf_document2:
     toc: FALSE
+  keep_tex:  true
 ---
 
 ```{r relAbuSetup, include=FALSE}
-## TODO feature count table
 library(here)
 library(nlme)
 library(ape)
@@ -226,6 +226,11 @@ rcov_fit_dat <- rcov_outlier_cat %>%
 rcov_fit <- nlme::lme(rcov_error ~ pipe, random =  ~ 1 | biosample_id,
                       data = rcov_fit_dat)
 
+rcov_post_hoc <- glht(rcov_fit, linfct = mcp(pipe = "Tukey"), 
+                      alternative = "greater")
+rcov_tukey_p <- summary(rcov_post_hoc)$test$pvalues
+rcov_tukey_t <- summary(rcov_post_hoc)$test$tstat
+
 # Pipe RCOV estimates
 dada_rcov <- rcov_fit$coefficients$fixed['(Intercept)']
 mothur_rcov <- dada_rcov + rcov_fit$coefficients$fixed['pipemothur']
@@ -234,6 +239,7 @@ qiime_rcov <- dada_rcov + rcov_fit$coefficients$fixed['pipeqiime']
 # Checking whether indiviudal or pipeline contributes more to the overal vaiance
 rcov_var <- ape::varcomp(rcov_fit)
 ```
+
 
 
 ```{r relAbuError, fig.width = 6.68, fig.cap = "Relative abundance assessment. (A) A linear model of the relationship between the expected and observed relative abundance. The dashed grey line indicates expected 1-to-1 relationship. The plot is split by individual and color is used to indicate the different bioinformatic pipelines. A negative binomial model was used to calculate an average relative abundance estimate across the four PCR replicates. Points with observed and expected relative abundance values less than 1/median library size were excluded from the data used to fit the linear model. (B) Relative abundance error rate distribution by individual and pipeline.", echo = FALSE, warning=FALSE, message = FALSE}
@@ -277,7 +283,7 @@ ggarrange(relAbuOvE,
 ```
 
 ```{r echo = FALSE, message = FALSE}
-ggsave("../figs/relAbuError-1.pdf",width = 170, units = "mm")
+ggsave(here("figs","relAbuError-1.pdf"),width = 170, units = "mm")
 ```
 
 
@@ -326,7 +332,7 @@ ggarrange(error_boxplot + rremove("x.text") + rremove("xlab"),
 ```
 
 ```{r echo = FALSE, message = FALSE}
-ggsave("../figs/relAbuErrorMetrics-1.pdf",width = 170, units = "mm")
+ggsave(here("figs","relAbuErrorMetrics-1.pdf"),width = 170, units = "mm")
 ```
 
 ```{r relAbuErrorTbl, echo = FALSE, warning = FALSE, message = FALSE}
@@ -358,7 +364,7 @@ rel_abu_error_summary %>%
       spread(Individual, value) %>%
       arrange(Metric) %>%
      dplyr::select(Metric, Pipeline, E01JH0004, E01JH0011, E01JH0016, E01JH0017, E01JH0038) %>%
-      knitr::kable(booktabs = TRUE, caption = "Median and range of feature-level error rate bias (median error rate) and variance (robust COV) by pipeline and individual.", digits = 2) %>%
+      knitr::kable(booktabs = TRUE, caption = "Maxium feature-level error rate bias (median error rate) and variance (robust COV) by pipeline and individual.", digits = 2) %>%
       collapse_rows(columns = 1) %>%
     kable_styling(latex_options = c("scale_down"))
 ```
@@ -384,13 +390,68 @@ A one-sided alternative hypothesis was used to determine which pipelines had sma
 
 __Mean feature-level bias  (\@ref(fig:relAbuErrorMetrics)B)__
 
-- DADA2 = (`r round(dada_error,2)`)  
-- Mothur = (`r round(mothur_error,2)`)
-- QIIME = (`r round(qiime_error,2)`).
+- DADA2 = `r round(dada_error,2)`  
+- Mothur = `r round(mothur_error,2)`
+- QIIME = `r round(qiime_error,2)`
 
 __feature-level variance (Fig. \@ref(fig:relAbuErrorMetrics)B)__  
 
 - Mothur = `r round(mothur_rcov,2)`  
 - QIIME = `r round(qiime_rcov,2)`   
-- DADA2 = `r round(dada_rcov)`  
+- DADA2 = `r round(dada_rcov, 2)`  
+
+__Stats Results__
+
+## Bias Stats Results
+```{r}
+summary(error_post_hoc)
+```
+
+```{r}
+confint(error_post_hoc) %>% 
+  broom::tidy() %>% 
+  ggplot(aes(lhs, y=estimate, ymin=conf.low, ymax=conf.high)) +
+    geom_hline(yintercept=0, linetype="11", colour="grey60") +
+    geom_errorbar(width=0.1) + 
+    geom_point() +
+    coord_flip() +
+    theme_classic()
+```
+
+
+
+```{r}
+error_tukey_p
+```
+
+```{r}
+error_tukey_t
+```
+
+```{r}
+error_var
+```
+
+
+## Variant Stats Results
+```{r}
+confint(rcov_post_hoc) %>% 
+  broom::tidy() %>% 
+  ggplot(aes(lhs, y=estimate, ymin=conf.low, ymax=conf.high)) +
+    geom_hline(yintercept=0, linetype="11", colour="grey60") +
+    geom_errorbar(width=0.1) + 
+    geom_point() +
+    coord_flip() +
+    theme_classic()
+```
+
+
+```{r}
+summary(rcov_post_hoc)
+```
+
+
+```{r}
+rcov_var
+```
 
