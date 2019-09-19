@@ -1,0 +1,115 @@
+---
+title: "Subject Pre-Post Community Comparison"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+
+
+```{r samCompSetup, include=FALSE}
+library(here)
+library(tidyverse)
+library(phyloseq)
+library(ggpubr)
+```
+
+```{r}
+get_pre_post_ps <- function(ps){
+    pre_post_ps <- subset_samples(ps, id != "1-F9" &  titration %in% c(20,0)) %>%  ## excluding failed outlier sample
+      {prune_taxa(taxa_sums(.) > 0, .)}
+  sample_data(pre_post_ps)$Titration <- factor(sample_data(pre_post_ps)$t_fctr,
+                                             levels = c(20,0),
+                                             labels = c("PRE", "POST"))
+  sample_data(pre_post_ps)$titration <- factor(sample_data(pre_post_ps)$t_fctr)
+  
+  pre_post_ps
+}
+
+get_titrations_ps <- function(ps){
+  titration_ps <- subset_samples(ps, id != "1-F9" & t_fctr %in% c(20,15,10,5,4,3,2,1,0)) %>%  ## excluding failed outlier sample
+    {prune_taxa(taxa_sums(.) > 0, .)}
+
+  sample_data(titration_ps)$Titration <- factor(sample_data(titration_ps)$t_fctr,
+                                                levels = c(20,15,10,5,4,3,2,1,0))
+  
+  titration_ps
+}
+
+make_pre_post_alpha_plot <- function(pre_post_ps, pipeline){
+  alpha_plot <- plot_richness(pre_post_ps, 
+              x = "Titration",
+              color = "biosample_id",
+              shape ="Titration", 
+              measures=c("Observed","Chao1", "Shannon")) +
+      theme_bw() +
+      # ggtitle(pipeline) + 
+      labs("Subject") +
+      facet_grid(variable~biosample_id, scales = "free") +
+      theme(legend.position = "none") +
+      labs(x = "Titration")
+  return(alpha_plot)
+}
+
+make_pre_post_beta_plot <- function(pre_post_ps, pipeline){
+  pre_post_ord <- ordinate(pre_post_ps, "PCoA", "bray")
+  beta_plot <- plot_ordination(physeq = pre_post_ps, pre_post_ord, 
+                type = "sample", color = "biosample_id", shape = "Titration") +
+      theme_bw() +
+      # ggtitle(pipeline) + 
+      labs(color = "Individual")
+
+  return(beta_plot)
+}
+
+
+make_titrations_beta_plot <- function(titration_ps, pipeline){
+  titration_ord <- ordinate(titration_ps, "PCoA", "bray")
+  beta_plot <- plot_ordination(physeq = titration_ps, titration_ord, 
+                type = "sample", shape = "biosample_id", color = "Titration") +
+      theme_bw() + 
+      labs(shape = "Individual")
+  return(beta_plot)
+}
+```
+
+
+```{r}
+dada_ps <- here("data","dada2_ps.rds") %>% readRDS()
+
+## Pre Post
+pre_post_ps <- get_pre_post_ps(dada_ps)
+pre_post_alpha_plot <- make_pre_post_alpha_plot(pre_post_ps)
+pre_post_beta_plot <- make_pre_post_beta_plot(pre_post_ps)
+
+## Titrations
+titrations_ps <- get_titrations_ps(dada_ps)
+titrations_beta_plot <- make_titrations_beta_plot(titrations_ps)
+```
+
+
+## Combined Plots
+```{r fig.height = 6, fig.width = 6}
+ggarrange(pre_post_alpha_plot, 
+          pre_post_beta_plot, 
+          ncol = 1, nrow = 2)
+ggsave(here("figs","pre_post_div.pdf"), height = 500,units = "mm")
+```
+
+```{r}
+titrations_beta_plot
+ggsave(here("figs","titrations_beta_div.pdf"), height = 500,units = "mm",)
+```
+
+
+# System Information
+
+```{r}
+s_info <- devtools::session_info()
+print(s_info$platform)
+s_info$packages %>% 
+  filter(attached) %>% dplyr::select(package, loadedversion, source) %>% 
+      knitr::kable()
+```
