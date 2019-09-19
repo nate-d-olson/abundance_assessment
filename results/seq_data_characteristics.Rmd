@@ -17,13 +17,14 @@ library(UpSetR)
 library(grid)
 library(ggplotify)
 library(ggpubr)
-pipeline_dir <- "~/Projects/mgtst_pipelines/"
+# pipeline_dir <- "~/Projects/mgtst_pipelines/"
 ```
 
 ```{r fq_data_filesp, warning=FALSE, message=FALSE, echo = FALSE}
-fastq_dir <- file.path(pipeline_dir, "data/")
-dat_files <- list.files(path = fastq_dir,pattern = "001.fastq.gz$",
-                           recursive = TRUE, full.names = TRUE)
+# fastq_dir <- file.path(pipeline_dir, "data/")
+# dat_files <- list.files(path = fastq_dir,pattern = "001.fastq.gz$",
+#                            recursive = TRUE, full.names = TRUE)
+dat_files <- read_lines(here("data","seq_files.lst"))
 seq_ds_id <- dat_files %>% str_split("/") %>% flatten_chr() %>%
     grep(pattern = "fastq.gz", .,value = TRUE) %>%
     str_replace(".fastq.gz","") %>% paste0("Fq_",.) %>%
@@ -39,7 +40,7 @@ read_groups[grepl("/1-.*_R2", dat_files)] <- "plate1_R2"
 read_groups[grepl("/2-.*_R1", dat_files)] <- "plate2_R1"
 read_groups[grepl("/2-.*_R2", dat_files)] <- "plate2_R2"
 
-qa_list <- readRDS(here("data","rqcQA_list.rds")
+qa_list <- readRDS(here("data","rqcQA_list.rds"))
 ```
 
 ```{r metadat, warning=FALSE, message=FALSE, echo = FALSE}
@@ -87,51 +88,11 @@ qa_cycle_q_df <- qa_list %>% map_df(perCycleQuality) %>%
 
 ```{r pipeMunge, echo = FALSE}
 mrexp_files <- list(
-      dada2 = here("data","dada_mrexp.rds",
-      mothur =  here("data","mothur_mrexp.rds",
-      qiime =  here("data","qiime_mrexp.rds"
+      dada2 = here("data","dada2_mrexp.rds"),
+      mothur =  here("data","mothur_mrexp.rds"),
+      qiime =  here("data","qiime_mrexp.rds")
 )
 mrexp <- mrexp_files %>% map(readRDS)
-#
-# ## Loading seq count data
-# fastq_dir <- file.path(pipeline_dir, "data")
-# dat_files <- list.files(path = fastq_dir,pattern = "001.fastq.gz$",
-#                         recursive = TRUE, full.names = TRUE)
-# seq_ds_id <- dat_files %>% str_split("/") %>% flatten_chr() %>%
-#       grep(pattern = "fastq.gz", .,value = TRUE) %>%
-#       str_replace(".fastq.gz","") %>% paste0("Fq_",.) %>%
-#       str_replace("-",".")
-# names(dat_files) <- seq_ds_id
-#
-# # from script but not saved
-# read_groups <- rep(NA,length(dat_files))
-# read_groups[grepl("/1-.*_R1", dat_files)] <- "plate1_R1"
-# read_groups[grepl("/1-.*_R2", dat_files)] <- "plate1_R2"
-# read_groups[grepl("/2-.*_R1", dat_files)] <- "plate2_R1"
-# read_groups[grepl("/2-.*_R2", dat_files)] <- "plate2_R2"
-#
-# qa_list <- readRDS("data/rqcQA_list.rds")
-#
-# ## Run
-# grp_df <- data_frame(read_group = read_groups,
-#                      seq_ds_id,
-#                      filename = basename(dat_files)) %>%
-#       separate(read_group,c("plate","Read")) %>%
-#       mutate(ill_id = str_replace(filename, "_.*",""))
-#
-# ## read count data
-# qa_file_info <- perFileInformation(qa_list) %>%
-#       select(-format,-path) %>%
-#       mutate(filename = as.character(filename))
-#
-# ## study metadata
-# meta_df <- sampleSheet %>%
-#       mutate(pos_ns = str_replace(pos, "_",""),
-#              ill_id = paste(pcr_16S_plate, pos_ns, sep = "-")) %>%
-#       filter(seq_lab == "JHU", barcode_lab == "JHU") %>%
-#       mutate(pcr_16S_plate = as.character(pcr_16S_plate)) %>%
-#       left_join(grp_df) %>%
-#       left_join(qa_file_info)
 
 ##### Count table characteristics
 ## number of OTUs
@@ -164,7 +125,12 @@ count_summary <- count_df %>% group_by(pipe) %>%
       summarise(count_med = median(counts) %>% round(0),
                 count_min = min(counts) %>% round(0),
                 count_max = max(counts) %>% round(0)) %>%
-      mutate(`Sample Coverage` = paste0(count_med, " (", count_min, "-", count_max,")")) %>%
+      mutate(`Sample Coverage` = paste0(format(count_med, big.mark   = ","), 
+                                        " (", 
+                                        format(count_min, big.mark = ",", width = 5, trim = FALSE), 
+                                        "-", 
+                                        format(count_max, big.mark = ",", width = 7, trim = FALSE),
+                                        ")")) %>%
       dplyr::select(pipe, `Sample Coverage`)
 
 reads_df <- meta_df %>% filter(Read == "R1") %>%
@@ -209,15 +175,32 @@ obs_feat_df <- meta_df %>%
 ```
 
 ```{r pipeQA, echo = FALSE, message = FALSE, warning = FALSE}
+count_summary <- count_df %>% group_by(pipe) %>%
+      summarise(count_med = median(counts) %>% round(0) %>% format(big.mark = ","),
+                count_min = min(counts) %>% round(0) %>% format(big.mark = ","),
+                count_max = max(counts) %>% round(0) %>% format(big.mark = ","))
+
+count_summary <- count_summary %>%
+      mutate(`Sample Coverage` = paste0(format(count_med, big.mark = ","),
+                                          " (",
+                                          sprintf("%5s", count_min),
+                                          " - ",
+                                       sprintf("%6s", count_max),
+                                       ")")) %>% 
+               dplyr::select(pipe, `Sample Coverage`)
+      
+count_summary$`Sample Coverage`
+count_summary
 data_frame(pipe = names(mrexp),
-           Features = features,
+           Features = format(features, big.mark   = ","),
            Sparsity = round(sparsity,2)) %>%
       left_join(count_summary) %>%
       left_join(filter_rate_summary) %>%
       mutate(pipe = forcats::fct_recode(pipe, DADA2 = "dada2", Mothur = "mothur", QIIME = "qiime")) %>%
       dplyr::rename(Pipelines = pipe, `Total Abundance` = `Sample Coverage`, `Drop-out Rate` = `Filter Rate`) %>%
-      knitr::kable(caption = "Summary statistics for the different bioinformatic pipelines. DADA2 is a denoising sequence inference pipeline, QIIME is an open-reference clustering pipeline, and Mothur  is a de-novo clustering pipeline. No template controls were excluded from summary statistics. Sparsity is the proportion of 0's in the count table. Features is the total number of OTUs (QIIME and Mothur ) or SVs (DADA2) in the count. Sample coverage is the median and range (minimum-maximum) per sample total abundance. Drop-out rate is the proportion of reads removed while processing the sequencing data for each bioinformatic pipeline.", booktabs = TRUE)
+      knitr::kable(align = "lrrrr", caption = "Summary statistics for the different bioinformatic pipelines. DADA2 is a denoising sequence inference pipeline, QIIME is an open-reference clustering pipeline, and Mothur  is a de-novo clustering pipeline. No template controls were excluded from summary statistics. Sparsity is the proportion of 0's in the count table. Features is the total number of OTUs (QIIME and Mothur ) or SVs (DADA2) in the count. Sample coverage is the median and range (minimum-maximum) per sample total abundance. Drop-out rate is the proportion of reads removed while processing the sequencing data for each bioinformatic pipeline.", booktabs = TRUE)
 ```
+
 
 
 ```{r qaPlots, fig.width = 6.68, warning=FALSE, message = FALSE, echo = FALSE, fig.cap = "Sequence dataset characteristics. (A) Distribution in the number of reads per barcoded sample (Library Size) by individual. Boxplots summarize data distribution with horizontal bar as median, boxes indicating interquartile range, whiskers $\\pm 1.5\\times IQR$, and black points outliers. The dashed horizontal line indicates overall median library size. Excluding one PCR replicate from subject E01JH0016 titration 5	that had only 3,195 reads. (B) Smoothing spline of the base quality score (BQS) across the amplicon by subject. Vertical lines indicate approximate overlap region between forward and reverse reads. Forward reads go from position 0 to 300 and reverse reads from 464 to 164."}
@@ -251,7 +234,7 @@ ggarrange(lib_size_fig, qual_fig, ncol = 1, nrow = 2,
 ```
 
 ```{r echo = FALSE, message = FALSE}
-ggsave(here("fig","qaPlots-1.pdf", width = 170, units = "mm")
+ggsave(here("figs","qaPlots-1.pdf"), width = 170, units = "mm")
 ```
 
 
@@ -289,6 +272,9 @@ ggarrange(feat_v_reads, feat_box, ncol = 1, nrow = 2,
           labels = "AUTO", common.legend = TRUE, align = "v", legend = "bottom")
 ```
 
+```{r echo = FALSE, message = FALSE}
+ggsave(here("figs","readsVfeats-1.pdf"), width = 170, units = "mm")
+```
 
 ```{r pipeTaxa, warning=FALSE, message = FALSE, echo = FALSE, fig.width = 6.68, fig.cap = "Comparison of dataset taxonomic composition across pipelines. Phylum (A) and Order (B) relative abundance by pipeline. Taxonomic groups with less than 1\\% total relative abundance were grouped together and indicated as other.  Pipeline genus-level taxonomic assignment set overlap for the all features (C) and the upper quartile genera by relative abundance for each pipeline (D)."}
 
@@ -349,6 +335,10 @@ ggarrange(
                 common.legend = TRUE, legend = "bottom"),
       ggarrange(plotlist = plot_df$set_gg, ncol = 2, nrow = 1, labels = c("C","D")),
       ncol = 1, nrow = 2)
+```
+
+```{r echo = FALSE, message = FALSE}
+ggsave(here("figs","pipeTaxa-1.pdf"), width = 170, units = "mm")
 ```
 
 We first characterize the number of reads per sample and base quality score distribution.
