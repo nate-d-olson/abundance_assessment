@@ -9,20 +9,28 @@ output:
 
 ```{r bac_setup, warning=FALSE, message=FALSE, echo = FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-library(ProjectTemplate)
-load.project()
+library(here)
+library(tidyverse)
 library(modelr)
 library(broom)
 ```
 
 ```{r warning=FALSE, message=FALSE, echo = FALSE}
-mod <- qpcrBacStd %>%
-      filter(std == "shan", conc >= 0.2) %>% mutate(log_conc = log10(conc)) %>%
-      {lm(log_conc~Ct, data = .)}
+qpcrBacStd <- readRDS(here("data", "qpcrBacStd.RDS"))
 
-bac_abu <- qpcrBacAbu %>% filter(!is.na(Ct), std == "shan") %>%
-      add_predictions(mod) %>%
-      mutate(quant = 10^pred)
+mod <- qpcrBacStd %>%
+  filter(std == "shan", conc >= 0.2) %>%
+  mutate(log_conc = log10(conc)) %>%
+  {
+    lm(log_conc ~ Ct, data = .)
+  }
+
+qpcrBacAbu <- readRDS(here("data", "qpcrBacAbu.RDS"))
+
+bac_abu <- qpcrBacAbu %>%
+  filter(!is.na(Ct), std == "shan") %>%
+  add_predictions(mod) %>%
+  mutate(quant = 10 ^ pred)
 
 #### Standard Curve Summary Metrics
 fit <- qpcrBacStd %>%
@@ -115,19 +123,16 @@ bac_con_summary <- bac_con_plot %>%
 bac_con_theta_fit <- bac_con_plot %>%
       mutate(theta = 2^-titration) %>%
       filter(titration != 20, stine_quant > 0.05) %>%
-      # group_by(biosample_id, t_group) %>% nest() %>%
       group_by(biosample_id) %>% nest() %>%
       mutate(fit = map(data, ~lm(quant~theta, data = .)),
              fit_tdy = map(fit, tidy),
              fit_glance = map(fit, glance))
 
-bac_con_r2 <- bac_con_theta_fit %>% #filter(t_group == "low") %>%
+bac_con_r2 <- bac_con_theta_fit %>%
       dplyr::select(biosample_id, fit_glance) %>% unnest() %>%
       dplyr::select(biosample_id, adj.r.squared)
 
 fit_stats <- bac_con_theta_fit %>%
-      # select(biosample_id, t_group, fit_tdy) %>%
-      #filter(t_group == "low") %>%
       dplyr::select(biosample_id, fit_tdy) %>%
       unnest() %>% filter(term == "theta") %>%
       add_column(adj.p.value =  p.adjust(.$p.value, method = "BH")) %>%
@@ -140,18 +145,29 @@ bac_con_plot_dat <- bac_con_plot %>%
       left_join(fit_stats) %>%
       mutate(theta = 2^-titration, slope = if_else(estimate > 0, "pos","neg"))
 
+bac_con_stat_df <- bac_con_plot_dat%>% 
+  select(biosample_id, pval, adj.r.squared, estimate) %>% 
+  distinct() %>% 
+  mutate(r2 = paste0("R^2 == ", signif(adj.r.squared,2)),
+         slope = paste0("Slope = ", signif(estimate, 2)))
+
 bac_con_plot_dat %>%
       ggplot() +
       geom_point(aes(y = quant, x = theta)) +
-      geom_smooth(aes(x = theta, y = quant, color = slope), method = "lm") +
-      geom_text(aes(x = 0.1, y = 7.5, label = pval), hjust = 0) +
-      geom_text(aes(x = 0.1, y = 7,
-                    label = paste0("R^2 == ", signif(adj.r.squared,2))),
+      geom_smooth(aes(x = theta, y = quant, color = slope)) +
+
+      geom_text(data = bac_con_stat_df, 
+                aes(x = 0.1, y = 7.5, label = pval), hjust = 0) +
+      geom_text(data = bac_con_stat_df, aes(x = 0.1, y = 7,
+                    label = r2),
                 hjust = 0, parse = TRUE) +
+        geom_text(data = bac_con_stat_df, 
+                aes(x = 0.1, y = 6.5, label = slope), hjust = 0) +
       facet_grid(~biosample_id, scales = "free") +
       theme_bw() + labs(x = "Proportion POST DNA", y = "DNA concentration (ng/ul)") +
       theme(legend.position = "none")
-#ggsave("~/Projects/MGTST-Manuscript/bacPlot-1.pdf", width = 170, height = 100, units = "mm")
+
+ggsave(here("figs", "bacPlot-1.pdf"), width = 170, height = 100, units = "mm")
 ```
 
 
@@ -162,3 +178,77 @@ If the proportion of prokaryotic DNA is the same between PRE and POST samples th
 For subjects where the proportion of prokaryotic DNA is higher in the PRE samples, the slope will be negative, and positive when the proportion is higher for POST samples.
 The slope estimates are significantly different from 0 for all subjects excluding E01JH0011 (Fig. \@ref(fig:bacPlot)).
 These results indicate that the proportion of prokaryotic DNA is lower in POST when compared to the PRE samples for E01JH0004 and E01JH0017 and higher for E01JH0016 and E01JH0038.
+
+```{r}
+bac_abu %>%
+      filter(sample_name != "NTC") %>%
+      ungroup() %>%
+      mutate(sample_name = gsub(" ","_", sample_name)) %>%
+      separate(sample_name, c("bio_rep","titration"), sep = "_") %>%
+      left_join(sample_name_df) %>%
+      mutate(titration = case_when(titration %in% paste0("M",c(0:20)) ~ str_replace(titration, "M",""),
+                                   titration == "Pre" ~ "20",
+                                   titration == "Post" ~ "0"),
+             titration = as.numeric(titration)) %>%
+    filter(Ct < 20, titration %in% c(1,20)) %>%
+  # group_by(biosample_id, titration) %>% 
+  # summarise(stine_quant = median(stine_quant)) %>% 
+
+      ggplot() +
+  
+      geom_point(aes(y = stine_quant, x = factor(titration))) +
+  geom_line(aes(y = stine_quant, x = factor(titration))) +
+      # geom_smooth(aes(x = theta, y = quant, color = slope), method = "lm") +
+
+      # geom_text(data = bac_con_stat_df, 
+      #           aes(x = 0.1, y = 7.5, label = pval), hjust = 0) +
+      # geom_text(data = bac_con_stat_df, aes(x = 0.1, y = 7,
+      #               label = r2),
+      #           hjust = 0, parse = TRUE) +
+      facet_wrap(~biosample_id) +
+      theme_bw() + labs(x = "Proportion POST DNA", y = "DNA concentration (ng/ul)") +
+      theme(legend.position = "none")
+```
+
+
+```{r}
+plot_dat <- bac_abu %>%
+      filter(sample_name != "NTC") %>%
+      ungroup() %>%
+      mutate(sample_name = gsub(" ","_", sample_name)) %>%
+      separate(sample_name, c("bio_rep","titration"), sep = "_") %>%
+      left_join(sample_name_df) %>%
+      filter(titration %in% c("Pre","Post")) %>%
+  mutate(titration = if_else(titration == "Pre", "Post", "Pre"))
+  filter(Ct < 20) 
+
+plot_dat %>% group_by(biosample_id, titration) %>% 
+  summarise(conc = median(stine_quant)) %>% 
+  spread(titration, conc) %>% 
+  mutate(ratio = if_else(Post < Pre, Pre/Post, Post/Pre),
+         higher_abu = if_else(Post < Pre, "Pre", "Post")) 
+```
+
+```{r}
+bac_abu %>%
+      filter(sample_name != "NTC") %>%
+      ungroup() %>%
+      mutate(sample_name = gsub(" ","_", sample_name)) %>%
+      separate(sample_name, c("bio_rep","titration"), sep = "_") %>%
+      left_join(sample_name_df) %>%
+      mutate(titration = case_when(titration %in% paste0("M",c(0:20)) ~ str_replace(titration, "M",""),
+                                   titration == "Pre" ~ "20",
+                                   titration == "Post" ~ "0"),
+             titration = as.numeric(titration)) %>%
+      filter(titration %in% c(0,20)) %>%
+      mutate(t_group = if_else(titration <= 5, "low","high")) %>% 
+  filter(Ct < 20) %>%
+     ggplot() +
+      geom_point(aes(y = stine_quant, x = factor(titration))) +
+  geom_line(aes(y = stine_quant, x = factor(titration))) +
+      facet_wrap(~biosample_id, scales = "free") +
+      theme_bw() + labs(x = "Proportion POST DNA", y = "DNA concentration (ng/ul)") +
+      theme(legend.position = "none")
+```
+
+

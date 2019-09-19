@@ -8,9 +8,8 @@ output:
 ---
 
 ```{r ercc_setup, warning=FALSE, message=FALSE, echo = FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-library(ProjectTemplate)
-load.project()
+library(here)
+library(tidyverse)
 library(stringr)
 library(modelr)
 library(ggpubr)
@@ -20,7 +19,8 @@ library(kableExtra)
 
 ```{r echo=FALSE, message=FALSE}
 ############################# Standard Curve ###################################
-ercc_std <- qpcrERCC %>%
+qpcrERCC <- readRDS(here("data","qpcrERCC.RDS"))
+ercc_std <-  qpcrERCC %>%
       filter(sample_type == "std",!grepl("NTC", sampleID)) %>%
       mutate(
             sampleID = gsub("\\(.*", "", sampleID),
@@ -47,8 +47,9 @@ std_fit <- fit_list %>% map_df(broom::glance, .id = "ercc") %>%
       )
 
 ################## Pre and Post Quant #########################################
-ercc_meta <-
-      erccMeta %>% dplyr::select(ercc_id, biosample_id, treatment) %>%
+erccMeta <- readRDS(here("data","erccMeta.RDS"))
+ercc_meta <- erccMeta %>% 
+      dplyr::select(ercc_id, biosample_id, treatment) %>%
       mutate(ercc = str_replace(ercc_id, "ERCC-", ""),
              ercc = as.numeric(ercc) %>% as.character())
 
@@ -125,65 +126,6 @@ ercc_vldtbl <- bind_rows(post_fit, pre_fit) %>%
       dplyr::select(biosample_id, treatment, R2, Slope)
 
 ercc_tbl <- left_join(ercc_stdtbl, ercc_vldtbl)
-
-
-#### Code for t-tests to check slopes equal to -1 and 1 #######################
-# fit_tdy <- post_fit_mod$fit[[1]] %>% tidy()
-# fit_glance <- post_fit_mod$fit[[1]] %>% glance()
-# resid_df <- fit_glance$df.residuals
-# slope_est <- fit_tdy[2,2]
-# slope_stderror <- fit_tdy[2,3]
-# t_val <- (slope_est - 1)/slope_stderror
-# p_val <-pt(t_val, resid_df)
-# p_val
-
-# fit_tdy <- pre_fit_mod$fit[[1]] %>% tidy()
-# fit_glance <- pre_fit_mod$fit[[1]] %>% glance()
-# resid_df <- fit_glance$df.residual
-# slope_est <- fit_tdy[2,2]
-# slope_stderror <- fit_tdy[2,3]
-#
-# t_val <- (slope_est + 1)/slope_stderror
-# p_val <-pt(t_val, resid_df)
-# p_val
-
-
-### Code for independent Pre and Post Plots ###################################
-# ercc_sam <- ercc_sam %>%
-#       mutate(ercc = as.character(ercc)) %>%
-#       left_join(ercc_meta)
-#
-#
-# ercc_plot_dat <- ercc_sam %>% mutate(ercc = as.character(ercc)) %>%
-#       left_join(ercc_meta) %>%
-#       mutate(pre_log2 = log2(pre_prop))
-#
-# pre_prop_values <- ercc_plot_dat %>%
-#       filter(treatment == "Pre", titration %in% c(1:4)) %>%
-#       .$pre_prop %>% unique() %>% round(2)
-#
-#
-#
-# ercc_preplot <- ercc_plot_dat %>%
-#       filter(treatment == "Pre", titration %in% c(1:4, 20)) %>%
-#       ggplot() +
-#       geom_smooth(aes(x = pre_prop, y = Ct), method = "lm") +
-#       geom_point(aes(x = pre_prop, y = Ct)) +
-#       facet_wrap( ~ biosample_id, ncol = 1) +
-#       labs(x = "Pre-Exposure Proportion", y = "Ct")  +
-#       scale_x_continuous(breaks = pre_prop_values,
-#                          labels = pre_prop_values,
-#                          trans = "log2") +
-#       theme_bw()
-#
-# ercc_postplot <- ercc_plot_dat %>%
-#       filter(treatment == "Post") %>%
-#       ggplot() +
-#       geom_smooth(aes(x = titration, y = Ct), method = "lm") +
-#       geom_point(aes(x = titration, y = Ct)) +
-#       facet_wrap( ~ biosample_id, ncol = 1) +
-#       labs(x = "Titration Factor", y = "Ct") +
-#       theme_bw()
 ```
 
 Titration series volumetric mixing was validated by quantifying ERCC plasmids spiked into the POST samples using qPCR.
@@ -211,11 +153,4 @@ ercc_tbl %>%
       mutate(Assay = str_replace(Assay, "_a1", "-a1")) %>%
       dplyr::select(Subject, ERCC, Assay, Length, `Std. $R^2$`, E, `$R^2$`, Slope) %>%
     knitr::kable(caption = "ERCC Spike-in qPCR assay information and summary statistics. ERCC is the ERCC identifier for the ERCC spike-in, Assay is TaqMan assay, and Length and GC are the size and GC content of the qPCR amplicon.  The Std. $R^2$ and Efficiency (E) statistics were computed for the standard curves. $R^2$ and slope for titration qPCR results for the titration series.", escape = FALSE,  booktabs = TRUE)
-```
-
-```{r erccPlot, fig.cap = "qPCR ERCC spike-in results for ERCC spiked into unmixed (A) Post-exposure samples and (B) Pre-exposure samples (titrations 1-4 only). X-axis is on a log2 scale with expected slope of 1 and -1 for Post-exposure and Pre-exposure spike-ins respectively. ", fig.height = 6, echo=FALSE, message=FALSE}
-# ggarrange(ercc_postplot,
-#           ercc_preplot,
-#           labels = c("A", "B"),
-#           nrow = 1, ncol = 2)
 ```
