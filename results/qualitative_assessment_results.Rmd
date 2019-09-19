@@ -164,5 +164,5 @@ ggarrange(mix_count_plot + rremove("x.text"), unmix_count_plot + rremove("x.text
 ```
 
 ```{r echo = FALSE, message = FALSE}
-ggsave(here("figs"," qualPlot-1.pdf"), width = 170, units = "mm")
+ggsave(here("figs","qualPlot-1.pdf"), width = 170, units = "mm")
 ```
