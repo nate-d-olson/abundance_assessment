@@ -7,15 +7,15 @@ output:
     toc: FALSE
 ---
 
-```{r}
+```{r message = FALSE}
 library(here)
 library(metagenomeSeq)
 library(tidyverse)
 
-mrexp <- list(dada2 = here("data", "dada2_mrexp.rds"),
-              mothur =  here("data", "mothur_mrexp.rds"),
-              qiime =  here("data", "qiime_mrexp.rds"),
-              unclustered = here("data", "unclustered_mrexp.rds")) %>%
+mrexp <- list(DADA2 = here("data", "dada2_mrexp.rds"),
+              Mothur =  here("data", "mothur_mrexp.rds"),
+              QIIME =  here("data", "qiime_mrexp.rds"),
+              Unclustered = here("data", "unclustered_mrexp.rds")) %>%
     map(readRDS)
 ```
 
@@ -41,16 +41,12 @@ calc_sparsity <- function(mat){
       nzero/nentry
 }
 
-sparsity <- mrexp %>% 
+overall_sparsity <- mrexp %>% 
     map(extract_samples) %>% 
       map(MRcounts, norm = FALSE, log = FALSE, sl = 1) %>% 
       map_dbl(calc_sparsity)
-sparsity
+overall_sparsity
 ```
-
-- Sparsity with and without singletons
-- sparsity by subject
-- sparsity by PCR rep
 
 ## singletons 
 ```{r}
@@ -92,36 +88,35 @@ biosample_id_list <- list(
 pipe <- rep(names(mrexp), each = length(biosample_id_list))
 mrexp_col <- rep(mrexp, each = length(biosample_id_list))
 biosample_id <- rep(names(biosample_id_list), length(mrexp))
-biosample_id_col <- rep(biosample_id_list, length(mrexp))
+biosample_id_list <- rep(biosample_id_list, length(mrexp))
 
-subject_sparsity_df <- data_frame(
-        pipe, mrexp = mrexp_col, biosample_id, biosample_id_list = biosample_id_col)%>% 
+subject_sparsity_df <- data_frame(pipe, 
+                                  mrexp = mrexp_col, 
+                                  biosample_id, 
+                                  biosample_id_list)%>% 
     mutate(sparsity = map2_dbl(mrexp, 
                                biosample_id_list,
                                get_individual_sparsity))
 
-overall_sparsity <- as.data.frame(sparsity) %>% 
+overall_sparsity_df <- as.data.frame(overall_sparsity) %>% 
     add_column(biosample_id = "Overall", .before = 1) %>% 
-    rownames_to_column(var = "pipe")
+    rownames_to_column(var = "pipe") %>% 
+  rename(sparsity = overall_sparsity)
 
 tidy_sparsity <- subject_sparsity_df %>%
     select(-mrexp, -biosample_id_list) %>%
-    bind_rows(overall_sparsity) %>% 
+    bind_rows(overall_sparsity_df) %>% 
     mutate(sparsity = round(sparsity, 2)) %>% 
-    spread(pipe, sparsity) 
-
-colnames(tidy_sparsity) <- c("Individual","DADA2",
-                                   "Mothur","QIIME","Unclustered")
+    spread(pipe, sparsity) %>%
+  rename(Individual = biosample_id)
 ```
+
 ```{r}
 tidy_sparsity
 ```
 
 
 ```{r results = "asis"}
-tidy_sparsity %>% 
-    knitr::kable(format = "latex")
+sparse_tbl <- tidy_sparsity %>% knitr::kable(format = "latex")
+write_lines(sparse_tbl, here("results","individual_sparsity_tbl.tex"))
 ```
-
-
-
