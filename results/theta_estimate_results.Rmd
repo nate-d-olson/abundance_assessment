@@ -165,3 +165,7 @@ boot_theta_hat %>%
       theme(legend.position = c(0.8, 0.05))
 ```
 
+```{r}
+ggsave(here("figs", "thetaHat-1.pdf"), width = 170, height = 100, units = "mm")
+```
+
