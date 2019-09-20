@@ -1,0 +1,82 @@
+---
+title: "logFC - Normalization Comparison"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+```{r}
+library(here)
+library(tidyverse)
+library(ggridges)
+library(ggpubr)
+
+### Loading Data ---------------------------------------------------------------
+### RDS file generated in 2017-10-19_logFC-error-metrics.RDS
+logFC_pre <- readRDS(here("data","norm_logFC_pre.RDS"))
+logFC_feature_summary <- readRDS(here("data","norm_logFC_feature_summary.RDS")) %>%
+      mutate(slope_error = 1 - slope)
+
+## Calculating error rate
+logFC_error <- logFC_pre %>%
+      filter(T1 != 0, T2 != 20) %>%
+      mutate(abs_error = abs(logFC - exp_logFC),
+             error = logFC - exp_logFC) %>% 
+    ## Issue with feature ids for UQ, excluding from comparison analysis
+    filter(!norm_method %in% c("UQ", "RAW"))
+```
+
+
+```{r logFcNormCountTbl, echo = FALSE}
+logFC_pre %>%
+      filter(T1 == 0, T2 == 20) %>%
+      mutate(Type = if_else(T00 == 0, "specific", "dominant")) %>%
+      group_by(norm_method, biosample_id, Type) %>%
+      summarise(count = n()) %>%
+      spread(norm_method, count, fill = 0) %>%
+      dplyr::rename(Individual = biosample_id) %>%
+      knitr::kable(caption = "Number of PRE-specific and PRE-dominant features by individual and normalization method for Mothur", booktabs = TRUE)
+```
+
+```{r logfcNormComp, fig.cap = "Impact of normalization methods on the agreement between log fold-change estimates and expected values for PRE-specific and PRE-dominant features. (A) Linear model relating the log fold-change estimates with the expected values by individual and normalization method. (B) Distribution of log fold-change (B) absolute error and (C) error by normalization method and individual.", echo=FALSE, message = FALSE, fig.height = 8}
+logFCestVexp <- logFC_error %>%
+      filter(T1 != 0, T2 != 20) %>%
+      ggplot() +
+      geom_smooth(aes(x = exp_logFC, y = logFC, color = norm_method), method = "lm") +
+      geom_abline(aes(intercept = 0, slope = 1), color = "grey20", linetype = 2) +
+      facet_wrap(~biosample_id, ncol = 1, scales = "free_y") + theme_bw()  +
+      labs(x = "Expected", y = "Estimate", color = "Normalization")
+
+logFC_abs_error_dist <- logFC_error %>%
+      group_by(biosample_id, norm_method) %>%
+      mutate(med_error = median(abs_error)) %>%
+      ggplot() +
+      geom_density_ridges(aes(x = abs_error, y = norm_method, color = norm_method),
+                          alpha = 0.5, stat = "binline", bins = 30, draw_baseline = FALSE)  +
+      geom_text(aes( x = -1, y = norm_method, label = round(med_error,2))) +
+      facet_wrap(~biosample_id, ncol = 1) + theme_bw() +
+      labs(x = "|Error|", y = "Normalization", color = "Normalization") +
+      theme(legend.position = "none")
+
+logFC_error_dist <- logFC_error %>%
+      group_by(biosample_id, norm_method) %>%
+      mutate(med_error = median(error)) %>%
+      ggplot() +
+      geom_density_ridges(aes(x = error, y = norm_method, color = norm_method),
+                          alpha = 0.5, stat = "binline", bins = 30, draw_baseline = FALSE)  +
+      geom_text(aes( x = -10, y = norm_method, label = round(med_error,2))) +
+      facet_wrap(~biosample_id, ncol = 1) + theme_bw() +
+      labs(x = "Error", y = "Normalization", color = "Normalization") +
+      theme(legend.position = "none")
+
+ggarrange(logFCestVexp,
+          logFC_error_dist,
+          logFC_abs_error_dist,
+          labels = "AUTO",
+          align = "v",
+          ncol = 3, nrow = 1,
+          common.legend = TRUE,
+          legend = "bottom")
+```

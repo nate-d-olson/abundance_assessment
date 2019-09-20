@@ -1,0 +1,100 @@
+---
+title: "logFC normalization method comparison data frames"
+author: "Nate Olson"
+date: '`r Sys.Date()`'
+output:
+  bookdown::pdf_document2:
+    toc: FALSE
+---
+
+```{r logFC_setup, include=FALSE}
+library(here)
+library(tidyverse)
+library(stringr)
+library(broom)
+```
+
+
+```{r loadData}
+### Loading Data ---------------------------------------------------------------
+pa_summary_df <- readRDS(here("data","pa_summary_anno_df.RDS")) %>% 
+      select(pipe, biosample_id, feature_id, 
+             T00, T20, pa_mixed)
+
+## generated with logFC_norm_comp_calc.R 
+logFC_df <- readRDS(here("data","norm_logFC_df.RDS")) %>% 
+      left_join(pa_summary_df)
+```
+
+
+```{r processData, include = FALSE}
+as_numeric_fctr <- function(x) as.numeric(as.character(x))
+
+logFC_pre <- logFC_df %>% 
+      mutate(T1_preprop = 1 - 2^-as_numeric_fctr(T1), 
+             T2_preprop = 1 - 2^-as_numeric_fctr(T2),
+            exp_logFC = log2(T2_preprop/T1_preprop)) %>% 
+      select(-T1_preprop, -T2_preprop)
+
+## Removing large data-frames that are no longer needed ------------------------
+rm(logFC_df)
+rm(pa_summary_df)
+```
+
+```{r}
+pa_summary_df %>% group_by(pipe) %>% sample_n(10)
+
+# filter(logFC_df, norm_method == "UQ")
+```
+```{r}
+logFC_df %>% group_by(norm_method, pipe) %>% sample_n(1)
+```
+
+
+## log fold-change error metrics 
+The slope estimate and R^2^ for feature level linear models of the expected and estimated log fold-change. The bias metric is 1-slope estimate and the model R^2^ value is the variance metric.
+
+```{r message = FALSE}
+## Fitting a linear model to individual features
+logFC_feature_fit <- logFC_pre %>% 
+    filter(T1 != 0, T2 != 20) %>% 
+    ## Replacing -Inf logFC values with -5 to prevent fit error
+    ## Excluding -Inf logFC the minimum value is ~ -4
+    mutate(logFC = if_else(logFC == -Inf, -5, logFC)) %>% 
+    ## Replacing Inf logFC values with 18 to prevent fit error
+    ## Excluding Inf logFC the minimum value is ~ 17
+    mutate(logFC = if_else(logFC == Inf, 18, logFC)) %>% 
+    ## Replacing Na's with 0 - both counts are 0  
+    mutate(logFC = if_else(is.na(logFC), 0, logFC)) %>% 
+    dplyr::select(pipe, biosample_id, feature_id, 
+                  norm_method, exp_logFC, logFC) %>%
+    group_by(pipe, biosample_id, feature_id, norm_method) %>% 
+    nest() %>% 
+    mutate(fit = map(data, ~lm(logFC ~ exp_logFC, data = .)))
+
+logFC_feature_glance <- logFC_feature_fit %>% 
+      mutate(fit_glance = map(fit, glance)) %>% 
+      select(-data, -fit) %>% 
+      unnest()
+
+logFC_feature_tidy <- logFC_feature_fit %>% 
+      mutate(fit_glance = map(fit, tidy)) %>% 
+      select(-data, -fit) %>% 
+      unnest()
+
+logFC_feature_slope <- logFC_feature_tidy %>% 
+      filter(term == "exp_logFC") %>% 
+      select(-term) %>% 
+      rename(slope = estimate)
+
+logFC_feature_summary <- logFC_feature_slope %>% 
+      select(-statistic, -p.value) %>% 
+      left_join(logFC_feature_glance)
+```
+
+
+## Saving data frames
+```{r}
+saveRDS(logFC_pre, here("data","norm_logFC_pre.RDS"))
+saveRDS(logFC_feature_summary, here("data", "norm_logFC_feature_summary.RDS"))
+```
