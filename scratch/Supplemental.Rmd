@@ -94,7 +94,7 @@ logFC_pre %>%
       labs(x = "Expected", y = "Estimate")
 ```
 
-```{r supLogFCmunge, include = FALSE}
+```{r supLogFCmunge, include = FALSE, eval = FALSE}
 ### Loading Data ---------------------------------------------------------------
 ### RDS file generated in 2017-10-19_logFC-error-metrics.RDS
 logFC_pre <- here("data","norm_logFC_pre.RDS") %>% readRDS()

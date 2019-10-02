@@ -16,21 +16,6 @@ library(ggpubr)
 ```
 
 ```{r}
-## Implemented already
-# fix_post_samples <- function(ps){
-#   sam_data <- sample_data(ps) %>% 
-#     mutate(biosample_id_fix = case_when(
-#                               t_fctr == 0 & biosample_id == "E01JH0004" ~ "E01JH0017", 
-#                               t_fctr == 0 & biosample_id == "E01JH0011" ~ "E01JH0004", 
-#                               t_fctr == 0 & biosample_id == "E01JH0016" ~ "E01JH0011", 
-#                               t_fctr == 0 & biosample_id == "E01JH0017" ~ "E01JH0016", 
-#                               TRUE ~ biosample_id
-#     ))
-#   sample_data(ps)$biosample_id <- sam_data$biosample_id_fix
-#   
-#   ps
-# }
-
 get_pre_post_ps <- function(ps){
     pre_post_ps <- subset_samples(ps, titration %in% c(20,0)) %>% 
       {prune_taxa(taxa_sums(.) > 0, .)}
@@ -108,10 +93,10 @@ titrations_beta_plot <- function(titration_ps, pipeline){
 ```{r}
 get_ps <- function() {
   mrexp_list <- list(
-    dada2 =  "data/dada2_ps.rds",
-    mothur = "data/mothur_ps.rds",
-    qiime =  "data/qiime_ps.rds",
-    unclustered =  "data/unclustered_ps.rds"
+    dada2 =  here("data","dada2_ps.rds"),
+    mothur = here("data","mothur_ps.rds"),
+    qiime =  here("data","qiime_ps.rds"),
+    unclustered =  here("data","unclustered_ps.rds")
   )  %>%
     map(readRDS)
 }
@@ -171,6 +156,7 @@ sample_data(titration_ps) %>%
   filter(id %in% c("1-F9", "1-C1")) 
 ```
 Getting full sample set for comparison
+
 ```{r}
 E4T2_samps <- sample_data(titration_ps) %>% 
   filter(biosample_id == "E01JH0004", titration == 2) 
@@ -210,10 +196,12 @@ alpha_div_df %>%
             min_obs = min(Observed))
 ```
 
-# Session information
+# System Information
+
 ```{r}
-# s_info <- devtools::session_info()
-# print(s_info$platform)
-# s_info$packages %>% filter(`*` == "*") %>% select(-`*`) %>% 
-#       knitr::kable()
+s_info <- devtools::session_info()
+print(s_info$platform)
+s_info$packages %>% 
+  filter(attached) %>% dplyr::select(package, loadedversion, source) %>% 
+      knitr::kable()
 ```

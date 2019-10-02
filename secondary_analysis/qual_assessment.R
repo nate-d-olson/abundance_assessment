@@ -149,6 +149,8 @@ calc_bayes_mc <- function(max_prop, total_count, obs_count = count, ALPHA, BETA)
       p_gt_max <- sum(mc_gt_count >= obs_count)/length(mc_gt_count) 
       
       ## sim distribution for P(Pi <= max_prop)
+      ## TODO - ask if this should also be beta distributed???
+      ## - I think it should be prop_sim for 0 to 1 distribution then split sims by < count and >= count
       prop_sim <- runif(n = 10000, min = 0, max = max_prop)
       mc_lt_count <- sapply(prop_sim, rbinom, size = total_count, n = 1)
       p_lt_max <- sum(mc_lt_count >= obs_count)/length(mc_lt_count)

@@ -94,13 +94,14 @@ titrations_beta_plot <- make_titrations_beta_plot(titrations_ps)
 ```{r fig.height = 6, fig.width = 6}
 ggarrange(pre_post_alpha_plot, 
           pre_post_beta_plot, 
-          ncol = 1, nrow = 2)
-ggsave(here("figs","pre_post_div.pdf"), height = 500,units = "mm")
+          ncol = 1, nrow = 2,labels = "AUTO")
+ggsave(here("figs","prePostDiv.pdf"),width = 125, height = 225,units = "mm")
 ```
 
 ```{r}
-titrations_beta_plot
-ggsave(here("figs","titrations_beta_div.pdf"), height = 500,units = "mm",)
+titrations_beta_plot %>% 
+  labs(shape = "Individual")
+ggsave(here("figs","titrationsBetaDiv.pdf"), width = 170, units = "mm",)
 ```
 
 

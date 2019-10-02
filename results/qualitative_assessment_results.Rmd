@@ -92,9 +92,12 @@ unmix_count_plot <- ggplot(unmix_plot_df) +
       geom_hline(aes(yintercept = 1), linetype = 2, color = "darkorange") +
       scale_y_log10(breaks = c(1,10,100,1000)) +
       theme_bw() +
-      labs(x = "Individual", y = "US Exp. Counts") +
-      theme(legend.position = "bottom", axis.text.x = element_text(angle = -45, hjust = 0),
-            plot.background = element_rect(fill = "transparent",colour = NA)) +
+      labs(x = "Individual", y = "Expected Counts") +
+      ggtitle("Unmixed-Specific") + 
+      theme(legend.position = "bottom", 
+            axis.text.x = element_text(angle = -45, hjust = 0),
+            plot.background = element_rect(fill = "transparent",colour = NA),
+            plot.title = element_text(face = "italic")) +
       facet_wrap(~pipe, nrow = 1)
 
 ## Only including p < 0.05
@@ -114,9 +117,12 @@ unmix_test_plot <- unmix_binom_prop %>%
       ggplot() +
       geom_bar(aes(x = biosample_id, y = pval_prop), stat = "identity") +
       facet_wrap(~pipe, nrow = 1) +
-      theme_bw() + theme(axis.text.x = element_text(angle = -45, hjust = 0),
-                         plot.background = element_rect(fill = "transparent",colour = NA)) +
-      labs(x = "Individual", y = "US Art. Feat. Prop.") +
+      labs(x = "Individual", y = "Artifactual Feature Proportion") +
+      ggtitle("Unmixed-Specific") +
+      theme_bw() + 
+      theme(axis.text.x = element_text(angle = -45, hjust = 0),
+            plot.background = element_rect(fill = "transparent",colour = NA),
+            plot.title = element_text(face = "italic")) +
       ylim(0, 1)
 
 mix_count_plot <- mix_count_df %>% filter(pipe != "unclustered") %>%
@@ -128,10 +134,12 @@ mix_count_plot <- mix_count_df %>% filter(pipe != "unclustered") %>%
       geom_hline(aes(yintercept = 1), linetype = 2, color = "darkorange") +
       scale_y_log10(breaks = c(1,10,100,1000)) +
       theme_bw() +
-      labs(x = "Individual", y = "TS Obs. Counts") +
+      labs(x = "Individual", y = "Observed Counts")  +
+      ggtitle("Titration-Specific") +
       theme(legend.position = "bottom",
             axis.text.x = element_text(angle = -45, hjust = 0),
-            plot.background = element_rect(fill = "transparent",colour = NA)) +
+            plot.background = element_rect(fill = "transparent",colour = NA),
+            plot.title = element_text(face = "italic")) +
       facet_wrap(~pipe, nrow = 1)
 
 ## Only including p < 0.05
@@ -151,8 +159,10 @@ mix_test_plot <- mix_binom_prop %>%
       ggplot() +
       geom_bar(aes(x = biosample_id, y = pval_prop), stat = "identity") +
       facet_wrap(~pipe, nrow = 1) +
-      theme_bw() + theme(axis.text.x = element_text(angle = -45, hjust = 0)) +
-      labs(x = "Individual", y = "TS Art. Feat. Prop.") +
+      labs(x = "Individual", y = "Artifactual Feature Proportion")  +
+      ggtitle("Titration-Specific") +
+      theme_bw() +  theme(axis.text.x = element_text(angle = -45, hjust = 0),
+                        plot.title = element_text(face = "italic")) +
       ylim(0, 1)
 ```
 
@@ -166,3 +176,167 @@ ggarrange(mix_count_plot + rremove("x.text"), unmix_count_plot + rremove("x.text
 ```{r echo = FALSE, message = FALSE}
 ggsave(here("figs","qualPlot-1.pdf"), width = 170, units = "mm")
 ```
+
+
+## Artifactual Features Table
+Calculating abundance of "sparse" features or titration specific features (supplementary table 3)
+
+<!-- \begin{table} -->
+<!-- \caption{\label{tab:TAandUSsummary}Summary of abundance of titration-specific and unmixed-specific features per pipeline. These numbers are only for E01JH0004 and are directly related to the proportions described in Supplemental Fig. \ref{fig:bayesPrior} for alpha = beta = 1.} -->
+<!-- \centering -->
+<!-- \resizebox{\linewidth}{!}{ -->
+<!-- \begin{tabular}[t]{llllll} -->
+<!-- \toprule -->
+<!-- Pipeline & \# of features & \emph{Titration-Specific} (TS) & Artifactual TS & \emph{Unmixed-Specific} (US) & Artifactual US \\ -->
+<!-- \midrule -->
+<!-- DADA2    & 3144 & 725  & 471  & 880 & 167  \\ -->
+<!-- Mothur   & 38358  &  8824  &  44  &  9047  & 18  \\ -->
+<!-- QIIME    & 11385  & 6386  &  3  &  3726  & 75  \\ -->
+<!-- \bottomrule -->
+<!-- \end{tabular}} -->
+<!-- \end{table} -->
+
+
+```{r}
+unmix_art_feature_count <- unmix_binom_tidy %>% 
+  mutate(artifactul_rep = if_else(adj.pvalue < 0.05, 1, 0)) %>% 
+  group_by(pipe, biosample_id, feature_id) %>% 
+  summarise(n_art_reps = sum(artifactul_rep)) %>% 
+  mutate(artifactual_feature = if_else(n_art_reps > 1, 1, 0)) %>% 
+  group_by(pipe, biosample_id) %>% 
+  summarise(n_art_features = sum(artifactual_feature))
+
+mix_art_feature_count <- mix_binom_tidy %>% 
+  mutate(artifactul_rep = if_else(adj.pvalue < 0.05, 1, 0)) %>% 
+  group_by(pipe, biosample_id, feature_id) %>% 
+  summarise(n_art_reps = sum(artifactul_rep)) %>% 
+  mutate(artifactual_feature = if_else(n_art_reps > 1, 1, 0)) %>% 
+  group_by(pipe, biosample_id) %>% 
+  summarise(n_art_features = sum(artifactual_feature))
+
+art_feature_counts <- bind_rows(unmixed = unmix_art_feature_count,
+                           mixed = mix_art_feature_count,.id = "pa_specific")
+```
+
+```{r}
+ts_us_specific_counts <- count_df %>% 
+  select(biosample_id, pipe, feature_id, pa_specific) %>% 
+  distinct() %>% 
+  group_by(pipe, biosample_id, pa_specific) %>% 
+  summarise(n_specific = n())
+```
+
+
+```{r}
+art_feat_df <- art_feature_counts %>% 
+  left_join(ts_us_specific_counts) %>% 
+  mutate(af_prop = n_art_features/ n_specific)
+```
+
+```{r}
+total_feature_df <- count_df %>% 
+  select(pipe, biosample_id, feature_id) %>% 
+  distinct() %>% 
+  group_by(pipe, biosample_id) %>% 
+  summarise(total_features = n())
+```
+
+```{r}
+art_feat_df <- art_feature_counts %>% 
+  left_join(ts_us_specific_counts) %>% 
+  mutate(af_prop = n_art_features/ n_specific) %>% 
+  left_join(total_feature_df)
+```
+
+```{r}
+art_feat_tbl <- art_feat_df %>% 
+  select(pipe, biosample_id, total_features, pa_specific,n_specific, n_art_features, af_prop) %>% 
+  mutate(af_prop = round(af_prop, 4)) %>% 
+  arrange(pipe, biosample_id, pa_specific)
+```
+
+```{r}
+library(knitr)
+library(kableExtra)
+art_table_tex <- kable(art_feat_tbl, "latex", 
+      longtable = T, booktabs = T, 
+      caption = "Artifactual Feature Proportion") %>%
+  kable_styling(latex_options = c("repeat_header")) %>% 
+  collapse_rows(columns = 1:3, latex_hline = "major", valign = "middle")
+write_lines(art_table_tex, here("results", "artifactual_table.tex"))
+```
+
+## Artifactual Feature Summary
+Comparison of AF taxonomy across methods.
+```{r}
+make_taxa_df <- function(){
+  require(phyloseq)
+  ps_list <- list(
+      dada2 = here("data","dada2_ps.rds"),
+      mothur =  here("data","mothur_ps.rds"),
+      qiime =  here("data","qiime_ps.rds")
+  ) %>% 
+      map(readRDS)
+  
+  get_taxa <- function(ps){
+      taxa_df <- tax_table(ps) %>% 
+          as.data.frame() %>%
+          tibble::rownames_to_column(var = "feature_id") %>% 
+          mutate_all(funs(str_remove(.,".__")))
+      
+      taxa_df <- tibble(feature_id = taxa_names(ps), 
+                        f_counts = taxa_sums(ps)) %>% 
+          left_join(taxa_df) 
+  }
+  
+  ps_list %>% map_dfr(get_taxa, .id = "pipe")
+}
+
+mix_art_feature_df <- unmix_binom_tidy %>% 
+  mutate(artifactul_rep = if_else(adj.pvalue < 0.05, 1, 0)) %>% 
+  group_by(pipe, biosample_id, feature_id) %>% 
+  summarise(n_art_reps = sum(artifactul_rep)) %>%  
+  mutate(artifactual_feature = if_else(n_art_reps > 1, 1, 0)) %>% 
+  left_join(make_taxa_df())
+```
+
+```{r, fig.height = 6}
+mix_art_feature_df %>% 
+  filter(artifactual_feature == 1) %>% 
+  filter(pipe != "unclustered") %>% 
+  ggplot() + 
+  geom_bar(aes(x = Rank4, fill = pipe), position = "dodge") + 
+  coord_flip() + 
+  # facet_wrap(~pipe, nrow = 1, scales = "free_x") +
+  theme_bw()
+```
+
+Clostridium and bacteriodetes are common artifactual features across methods
+```{r}
+clost_af_df <- mix_art_feature_df %>% 
+  filter(Rank4 == "Clostridiales") %>% 
+  group_by(pipe, biosample_id, Rank5) %>% 
+  mutate(f_count = sum(f_counts)) %>% 
+  group_by(pipe, biosample_id, Rank5, f_counts, artifactual_feature) %>% 
+  summarise(count = n()) %>% 
+  spread(artifactual_feature, count, fill = 0)
+```
+
+```{r}
+clost_af_df %>% 
+  ungroup() %>% 
+  select(-f_counts, -`0`) %>% 
+  filter(`1` != 0) %>% 
+  group_by(pipe, biosample_id, Rank5) %>% 
+  summarise(n_art = sum(`1`)) %>% 
+  spread(pipe, n_art) %>% 
+  arrange(Rank5)
+```
+A number of Ruminococcaceae and Lachnospiraceae features are artifacts for both DADA2 and QIIME across all five individuals, interestingly not artifactual for Mothur. 
+
+```{r}
+mix_art_feature_df %>% 
+  filter(Rank5 == "Lachnospiraceae") %>% 
+  arrange(Rank6)
+```
+

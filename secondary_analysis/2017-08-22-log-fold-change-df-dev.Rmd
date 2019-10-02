@@ -274,7 +274,7 @@ mrexp_to_edgeR <- function(mrexp_obj, group, method = "RLE", ...){
 require(edgeR)
 logFC_edgeR_dada2_df <- titration_comp_dada2_df %>% 
       mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest)) 
+             fit = map(fit, exactTest, prior.count = 0)) 
 
 logFC_edgeR_dada2_coefs_df <- logFC_edgeR_dada2_df %>% 
       mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
@@ -289,7 +289,7 @@ logFC_edgeR_dada2_coefs_tidy <- logFC_edgeR_dada2_coefs_df %>%
 ```{r message = FALSE}
 logFC_edgeR_mothur_df <- titration_comp_mothur_df %>% 
  mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest)) 
+             fit = map(fit, exactTest, prior.count = 0)) 
 
 logFC_edgeR_mothur_coefs_df <- logFC_edgeR_mothur_df %>% 
       mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
@@ -304,7 +304,7 @@ logFC_edgeR_mothur_coefs_tidy <- logFC_edgeR_mothur_coefs_df %>%
 ```{r message = FALSE}
 logFC_edgeR_qiime_df <- titration_comp_qiime_df %>% 
       mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest)) 
+             fit = map(fit, exactTest, prior.count = 0)) 
 
 logFC_edgeR_qiime_coefs_df <- logFC_edgeR_qiime_df %>% 
       mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
@@ -319,7 +319,7 @@ logFC_edgeR_qiime_coefs_tidy <- logFC_edgeR_qiime_coefs_df %>%
 ```{r message = FALSE}
 logFC_edgeR_unclustered_df <- titration_comp_unclustered_df %>% 
       mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest)) 
+             fit = map(fit, exactTest, prior.count = 0)) 
 
 logFC_edgeR_unclustered_coefs_df <- logFC_edgeR_unclustered_df %>% 
       mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
