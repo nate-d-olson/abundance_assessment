@@ -1,5 +1,5 @@
 ---
-title: "logFC Error Metrics"
+title: "logFC Error Metrics - for edgeR 0 prior count"
 author: "Nate Olson"
 date: '`r Sys.Date()`'
 output:
@@ -31,7 +31,7 @@ pa_summary_df <- readRDS(here("data","pa_summary_anno_df.RDS")) %>%
              T00, T20, pa_mixed) 
       
 
-logFC_df <- readRDS(here("data","logFC_edgeR_df.rds")) %>%
+logFC_df <- readRDS(here("data","logFC_edgeR_0_prior_df.rds")) %>%
       rename(feature_id = OTUname) 
 
 ## Combining logFC estimates
@@ -133,6 +133,6 @@ logFC_feature_fit <- logFC_pre %>%
 
 ## Saving data frames
 ```{r}
-saveRDS(logFC_pre, here("data","logFC_pre.RDS"))
-saveRDS(logFC_feature_summary, here("data","logFC_feature_summary.RDS"))
+saveRDS(logFC_pre, here("data","logFC_pre_0_prior.RDS"))
+saveRDS(logFC_feature_summary, here("data","logFC_feature_summary_0_prior.RDS"))
 ```

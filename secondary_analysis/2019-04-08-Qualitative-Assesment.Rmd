@@ -17,7 +17,8 @@ output:
 
 # Loading libraries, data, and tidying 
 
-```{r, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
+library(here)
 library(tidyverse)
 library(broom)
 library(ggpubr)
@@ -25,31 +26,33 @@ library(ggpubr)
 
 ## Initiating parallelization 
 library(furrr)
-plan(multiprocess)
+plan(multisession)
 
-raw_counts <- readRDS("../data/raw_counts.RDS")
-nb_counts <- readRDS("../data/nb_counts_titrations.RDS") # where does this come from?
-pa_summary_anno_df <- readRDS("../data/pa_summary_anno_df.RDS")
-theta_est <- readRDS("../data/bootstrap_theta_estimates.RDS")
+## input data files
+raw_counts_file <- here("data","raw_counts.RDS")
+nb_counts_file <- here("data","nb_counts_titrations.RDS")
+pa_summary_anno_file <- here("data","pa_summary_anno_df.RDS")
+theta_est_file <- here("data","bootstrap_theta_estimates.RDS")
 ```
 
-```{r qual_tidy, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+```{r qual_tidy}
 ## Feature-PCR rep level tidy data frame
 ## Relevant raw_count factors
-count_df <- raw_counts %>%
-      select(biosample_id, t_fctr, id, pipe, feature_id, count)
-
-# grouping rows by `id` column and then adding column of total_counts
-count_df <- count_df %>%
+count_df <- readRDS(raw_counts_file) %>%
+      select(biosample_id, t_fctr, id, pipe, feature_id, count) %>% 
+      # grouping rows by `id` column and then adding column of total_counts
       group_by(id) %>%
       mutate(total_count = sum(count))
 
 ## Sanity Check
 count_df$total_count %>% unique() %>% summary()
 
+## Loading negative binomial count data
+nb_counts <- readRDS(nb_counts_file)
+
 ## Annotating with feature type
 # essentially just reordered cols of count_df and changed what is being "grouped" by
-count_df <- pa_summary_anno_df %>%
+count_df <- readRDS(pa_summary_anno_file) %>%
       select(biosample_id, pipe, feature_id, pa_specific) %>%
       left_join(count_df)
 
@@ -63,15 +66,17 @@ pre_post_prop <- nb_counts %>%
       ## setting values to 0 when one or more of the PCR replicates are 0 for titration end-points
       spread(end_point, nb_prop, fill = 0)
 
-prop_inferred <- theta_est %>%
+prop_inferred <- readRDS(theta_est_file) %>%
       filter(pipe == "unclustered") %>%
       ungroup() %>%
       mutate(t_fctr = factor(t_fctr, levels = c(0:5, 10, 15, 20))) %>%
       select(biosample_id, theta_hat_mean, t_fctr) %>%
-      right_join(nb_counts) %>% right_join(pre_post_prop) %>%
+      right_join(nb_counts) %>% 
+      right_join(pre_post_prop) %>%
       filter(t_fctr %in% c(1:5,10,15)) %>%
       ## Setting negative inferred theta values to 0
-      mutate(theta_hat_mean = if_else(theta_hat_mean < 0, 0, theta_hat_mean)) %>%
+      mutate(theta_hat_mean = if_else(theta_hat_mean < 0, 
+                                      0, theta_hat_mean)) %>%
       ## Using inferred theta estimates to calculate expected values
       mutate(inferred_prop = post * theta_hat_mean + pre * (1-theta_hat_mean))
 
@@ -111,20 +116,24 @@ unmix_binom_test <- function(unmix_count_df, output_file, confidence){
     unmix_binom_test_df <- unmix_count_df %>%
         group_by(pipe, biosample_id, id, feature_id, t_fctr) %>%
         nest() %>%                                                
-        mutate(binom_test = future_map(data, ~with(., binom.test(x = 0,  
-                                                          n = total_count , 
-                                                          p = inferred_prop, 
-                                                          alternative = "less",
-                                                          conf.level = confidence))),
+        mutate(binom_test = future_map(data, ~with(., 
+                                                   binom.test(
+                                                     x = 0,  
+                                                     n = total_count , 
+                                                     p = inferred_prop, 
+                                                     alternative = "less",
+                                                     conf.level = confidence
+                                                     )
+                                                   )
+                                       ),
                binom_tidy = map(binom_test, tidy))
 
     ## tidy-ing up results
     unmix_binom_tidy <- unmix_binom_test_df %>%
         select(pipe, biosample_id, id, feature_id, t_fctr, binom_tidy) %>%
-        unnest() # error occurred on this line
-
-    ## multiple test correction
-    unmix_binom_tidy$adj.pvalue <- p.adjust(unmix_binom_tidy$p.value, method = "BH")
+        unnest() 
+        ## multiple test correction
+        mutate(adj.pvalue = p.adjust(p.value, method = "BH"))
 
     ## Saving data frame as RDS to prevent having to rerun
     saveRDS(unmix_binom_tidy, output_file)
@@ -134,8 +143,17 @@ unmix_binom_test <- function(unmix_count_df, output_file, confidence){
 seperating by pipeline & comparing one tailed vs two tailed p-value distributions
 
 ```{r}
-unmix_binom_0.95 <- unmix_binom_test(unmix_count_df, output_file = "../data/unmix_binom_test.RDS", confidence = 0.95)
-unmix_binom_0.975 <- unmix_binom_test(unmix_count_df, output_file = ",,.data/unmix_binom_0.975.RDS", confidence = 0.975)
+unmix_binom_0.95 <- unmix_binom_test(
+  unmix_count_df,
+  output_file = here("data", "unmix_binom_test.RDS"),
+  confidence = 0.95
+)
+
+unmix_binom_0.975 <- unmix_binom_test(
+  unmix_count_df,
+  output_file = here("data", "unmix_binom_0.975.RDS"),
+  confidence = 0.975
+)
 ```
 
 ## 2. Titration specific analyses
@@ -165,7 +183,13 @@ calc_bayes_mc <- function(max_prop, total_count, obs_count = count, ALPHA, BETA)
       (p_lt_max * 0.5)/sum((p_lt_max * 0.5), (p_gt_max * 0.5))
 }
 
-mix_binom_bayes <- function(count_df, mix_count_df, output_file, ALPHA, BETA){
+mix_binom_bayes <- function(output_file, count_df, mix_count_df){
+      ALPHA <- str_extract(outfiles, "(?<=test_).*(?=_)") %>% 
+        as.numeric()
+      
+      BETA <- str_extract(outfiles, "(?<=[:digit:]_).*(?=.RDS)") %>% 
+        as.numeric()
+      
       ## Minimum expected proportion
       min_prop <- count_df %>% 
             ## Only allowing for non-zero minimum proportions
@@ -180,12 +204,14 @@ mix_binom_bayes <- function(count_df, mix_count_df, output_file, ALPHA, BETA){
                    min_post = min(post)) %>% 
             select(pipe, biosample_id, theta_hat_mean, min_pre, min_post) %>% 
             unique() %>% 
-            mutate(min_exp_prop = min_post*theta_hat_mean + min_pre * (1-theta_hat_mean))
+            mutate(min_exp_prop = min_post * theta_hat_mean + min_pre * (1 - theta_hat_mean))
+      
       mix_count<- mix_count_df %>% 
             filter(pa_specific == "mixed") %>% 
             left_join(min_prop) %>% 
             ## excluding Unclustered decreases the number of tests from 136k to 28k
             filter(pipe != "unclustered")
+      
       mix_binom_test <- mix_count %>% 
             ## Minimizing the number of test performed
             select(min_exp_prop, total_count, count) %>% unique() %>% 
@@ -194,8 +220,11 @@ mix_binom_bayes <- function(count_df, mix_count_df, output_file, ALPHA, BETA){
                                               total_count = total_count, 
                                               obs_count = count,
                                               ALPHA, BETA))
-      mix_binom_test_df <- mix_count %>% left_join(mix_binom_test)
-      mix_binom_test_df$adj.pvalue <- p.adjust(mix_binom_test_df$bayes_test, method = "BH") 
+      
+      mix_binom_test_df <- mix_count %>% 
+        left_join(mix_binom_test) %>% 
+        mutate(adj.p.value = p.adjust(bayes_test, method = "BH"))
+
       saveRDS(mix_binom_test_df, output_file)
 }
 ```
@@ -203,73 +232,21 @@ mix_binom_bayes <- function(count_df, mix_count_df, output_file, ALPHA, BETA){
 Iterating MC simulations for various parameterizations of alpha and beta parameters of the beta distribution.
 
 ```{r}
-# library(doParallel)
-# library(foreach)
-# cl <- makeCluster(2)
-# registerDoParallel(cl)
+## alpha and beta parameter values
+model_values <- str_pad(c(1, 2, 10, 25), width = 2, side = "left", pad = "0")
+model_params <- cross2(model_values, model_values)
 
-# # trying to parallelize with foreach
-# foreach(n = 1:length(Alpha_values)) %dopar% {
-#       foreach(m = 1:length(Beta_values)) %dopar% {
-#             output_file <- paste("../data/mix_bayes_test_results/mix_bayes_test", "_",
-#                                  Alpha_values[n], "_", Beta_values[m], sep = "")
-#             print(output_file)
-#             mix_binom_bayes(count_df, mix_count_df, output_file = output_file, ALPHA = A, BETA = B)
-#       }
-# }
+outfiles <- model_params %>% 
+  map_chr(paste, collapse = "_") %>% 
+  {paste0("test_", ., ".RDS")}
 
+library(furrr)
+plan(multiprocess)
 
-# below code may take some time to run on a local system.
-Alpha_values <- c(1, 2, 10, 25)
-Beta_values <- c(1, 2, 10, 25)
-
-for (A in Alpha_values) {
-      for (B in Beta_values) {
-            if (A == 1 || A == 2) {
-                Apath <- paste("0", A, sep = "")
-            } else Apath <- A
-            if (B == 1 || B == 2) {
-                Bpath <- paste("0", B, sep = "")
-            }else Bpath <- B
-            output_file <- paste("../data/mix_bayes_res/corrected/test", "_", Apath, "_", Bpath, ".RDS", sep = "")
-            print(output_file)
-            mix_binom_bayes(count_df, mix_count_df, output_file = output_file, ALPHA = A, BETA = B)
-      }
-}
+## Defining output files
+model_params %>% 
+  map_chr(paste, collapse = "_") %>% 
+  {paste0("test_", ., ".RDS")} %>% 
+  ## performing MC tests
+  future_map2(mix_binom_bayes, count_df, mix_count_df)
 ```
-
-## Calculating sparsity per individual
-
-```{r}
-tmp <- raw_counts %>% 
-      group_by(biosample_id, pipe, feature_id) %>% 
-      summarise(total_counts = sum(count)) 
-
-
-n_dada2_feat <- tmp %>% filter(biosample_id == "E01JH0004", pipe == "dada2") %>% nrow()
-n_mothur_feat <- tmp %>% filter(biosample_id == "E01JH0004", pipe == "mothur") %>% nrow()
-n_qiime_feat <- tmp %>% filter(biosample_id == "E01JH0004", pipe == "qiime") %>% nrow()
-n_unclustered_feat <- tmp %>% filter(biosample_id == "E01JH0004", pipe == "unclustered") %>% nrow()
-
-tmp2 <- tmp %>% 
-      mutate(pres_abs = (total_counts > 0)) %>%
-      group_by(biosample_id, pipe) %>%
-      summarise(pres_abs = sum(pres_abs)) %>%
-      spread(pipe, pres_abs)
-
-# calculate sparsity per pipeline and individual
-tmp2$dada2 <- (1 - tmp2$dada2/n_dada2_feat)
-tmp2$mothur <- (1 - tmp2$mothur/n_mothur_feat)
-tmp2$qiime <- (1 - tmp2$qiime/n_qiime_feat)
-tmp2$unclustered <- (1 - tmp2$unclustered/n_unclustered_feat)
-
-# adding overall sparsity row on bottom
-overall_sparsity <- data.frame(biosample_id = "Overall_Sparsity", dada2 = 0.93, mothur = 0.98, qiime = 0.94)
-tmp2 <- tmp2[,-5]
-tmp2[6,] <- overall_sparsity
-tmp2[6,1] <- "Overall"
-tmp2[,-1]<- round(tmp2[,-1], 2)
-tmp2
-```
-
-
