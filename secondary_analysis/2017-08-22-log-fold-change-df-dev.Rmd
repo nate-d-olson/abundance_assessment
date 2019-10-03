@@ -9,14 +9,15 @@ output:
 ---
 
 ```{r message = FALSE}
+library(here)
 library(metagenomeSeq)
 library(tidyverse)
 get_mrexp <- function() {
   mrexp_list <- list(
-    dada2 =  "data/dada2_mrexp.rds",
-    mothur = "data/mothur_mrexp.rds",
-    qiime =  "data/qiime_mrexp.rds",
-    unclustered =  "data/unclustered_mrexp.rds"
+    dada2 =  here("data","dada2_mrexp.rds"),
+    mothur = here("data","mothur_mrexp.rds"),
+    qiime =  here("data","qiime_mrexp.rds"),
+    unclustered =  here("data","unclustered_mrexp.rds")
   )  %>%
     map(readRDS)
 }
@@ -112,112 +113,6 @@ titration_comp_unclustered_df <- mrexp$unclustered %>%
 
 
 ## Estimate logFC 
-### MetagenomeSeq - fitFeatureModel  
-
-Functions for calculating logFC using fitFeatureModel
-```{r}
-fit_model <- function(mrexp_sub, T1, T2, css_p = 0.75, present = 8, depth = 1){
-      ## Normalize count data
-      mrexp_sub <-  cumNorm(mrexp_sub, p = css_p)
-      
-      # Exclude features with counts not observed in all PCR replicates
-      mrexp_sub2 <- filterData(mrexp_sub, present = present, depth = depth)
-
-      pd <- pData(mrexp_sub2) 
-
-      ## Fitting Model
-      mod <- model.matrix(~1 + t_fctr, data = pd)
-      fitFeatureModel(mrexp_sub2, mod)
-}
-
-fit_safely <- safely(fit_model)
-mrcoefs_safely <- safely(MRcoefs)
-```
-
-#### DADA2
-```{r message = FALSE, warning = FALSE}
-logFC_MgSeq_dada2_df <- titration_comp_dada2_df %>% 
-      mutate(fit = pmap(list(mrexp_sub, T1, T2), fit_safely)) 
-
-logFC_MgSeq_dada2_coefs_df <- logFC_MgSeq_dada2_df %>% 
-      mutate(fit_coefs = map(fit, ~mrcoefs_safely(.$result, number = Inf))) 
-
-logFC_MgSeq_dada2_coefs_tidy <- logFC_MgSeq_dada2_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      mutate(fit_coefs = map(fit_coefs, ~.$result),
-             fit_coefs_class = map_chr(fit_coefs, class)) %>% 
-      filter(fit_coefs_class == "data.frame") %>%
-      select(-fit_coefs_class) %>%
-      mutate(fit_coefs = map(fit_coefs, rownames_to_column, var = "featureNames")) %>%
-      unnest()
-```
-
-
-#### Mothur
-```{r message = FALSE, warning = FALSE}
-logFC_MgSeq_mothur_df <- titration_comp_mothur_df %>% 
-      mutate(fit = pmap(list(mrexp_sub, T1, T2), fit_safely)) 
-
-logFC_MgSeq_mothur_coefs_df <- logFC_MgSeq_mothur_df %>% 
-      mutate(fit_coefs = map(fit, ~mrcoefs_safely(.$result, number = Inf))) 
-
-logFC_MgSeq_mothur_coefs_tidy <- logFC_MgSeq_mothur_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      ## filtering titration comparisons where the model failed
-      mutate(fit_coefs = map(fit_coefs, ~.$result),
-             fit_coefs_class = map_chr(fit_coefs, class)) %>% 
-      filter(fit_coefs_class == "data.frame") %>% select(-fit_coefs_class) %>% 
-      mutate(fit_coefs = map(fit_coefs, rownames_to_column, var = "featureNames")) %>% 
-      unnest()
-```
-
-#### QIIME
-```{r message = FALSE, warning = FALSE}
-logFC_MgSeq_qiime_df <- titration_comp_qiime_df %>% 
-      mutate(fit = pmap(list(mrexp_sub, T1, T2), fit_safely)) 
-
-logFC_MgSeq_qiime_coefs_df <- logFC_MgSeq_qiime_df %>% 
-      mutate(fit_coefs = map(fit, ~mrcoefs_safely(.$result, number = Inf))) 
-
-logFC_MgSeq_qiime_coefs_tidy <- logFC_MgSeq_qiime_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      ## excluding titration comparisons where the model failed
-      mutate(fit_coefs = map(fit_coefs, ~.$result),
-             fit_coefs_class = map_chr(fit_coefs, class)) %>% 
-      filter(fit_coefs_class == "data.frame") %>% select(-fit_coefs_class) %>% 
-      mutate(fit_coefs = map(fit_coefs, rownames_to_column, var = "featureNames")) %>% 
-      unnest()
-```
-
-#### Unclustered
-```{r message = FALSE, warning = FALSE}
-logFC_MgSeq_unclustered_df <- titration_comp_unclustered_df %>% 
-      mutate(fit = pmap(list(mrexp_sub, T1, T2), fit_safely)) 
-
-logFC_MgSeq_unclustered_coefs_df <- logFC_MgSeq_unclustered_df %>% 
-      mutate(fit_coefs = map(fit, ~mrcoefs_safely(.$result, number = Inf))) 
-
-logFC_MgSeq_unclustered_coefs_tidy <- logFC_MgSeq_unclustered_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      ## excluding titration comparisons where the model failed
-      mutate(fit_coefs = map(fit_coefs, ~.$result),
-             fit_coefs_class = map_chr(fit_coefs, class)) %>% 
-      filter(fit_coefs_class == "data.frame") %>% select(-fit_coefs_class) %>% 
-      mutate(fit_coefs = map(fit_coefs, rownames_to_column, var = "featureNames")) %>% 
-      unnest()
-```
-
-Cleanup fitfeatureModel
-```{r}
-rm(logFC_MgSeq_dada2_df)
-rm(logFC_MgSeq_dada2_coefs_df)
-rm(logFC_MgSeq_mothur_df)
-rm(logFC_MgSeq_mothur_coefs_df)
-rm(logFC_MgSeq_qiime_df)
-rm(logFC_MgSeq_qiime_coefs_df)
-rm(logFC_MgSeq_unclustered_df)
-rm(logFC_MgSeq_unclustered_coefs_df)
-```
 
 ### EdgeR
 Function for running EdgeR
@@ -267,67 +162,61 @@ mrexp_to_edgeR <- function(mrexp_obj, group, method = "RLE", ...){
       ## Estimate dispersions
       z %>% estimateCommonDisp() %>% estimateTagwiseDisp()
 }
+
+get_tidy_coefs <- function(titration_comp_df, prior.count = 0.125){
+  require(edgeR)
+  logFC_df <- titration_comp_df %>% 
+      mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
+             fit = map(fit, exactTest, prior.count = prior.count)) 
+
+  logFC_coefs_df <- logFC_df %>% 
+      mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
+
+  logFC_coefs_df %>% 
+      select(biosample_id, T1, T2, fit_coefs) %>% 
+      mutate(fit_coefs = map(fit_coefs, ~.@.Data[[1]])) %>% 
+      unnest(cols = c(fit_coefs))
+}
 ```
 
 #### DADA2
 ```{r message = FALSE}
-require(edgeR)
-logFC_edgeR_dada2_df <- titration_comp_dada2_df %>% 
-      mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest, prior.count = 0)) 
+## with default edgeR priors
+logFC_edgeR_dada2_df <- get_tidy_coefs(titration_comp_dada2_df)
 
-logFC_edgeR_dada2_coefs_df <- logFC_edgeR_dada2_df %>% 
-      mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
-
-logFC_edgeR_dada2_coefs_tidy <- logFC_edgeR_dada2_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      mutate(fit_coefs = map(fit_coefs, ~.@.Data[[1]])) %>% 
-      unnest()
+## with no edgeR priors
+logFC_edgeR_dada2_0_prior_df <- get_tidy_coefs(titration_comp_dada2_df,
+                                               prior.count = 0)
 ```
 
 #### Mothur
 ```{r message = FALSE}
-logFC_edgeR_mothur_df <- titration_comp_mothur_df %>% 
- mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest, prior.count = 0)) 
+## with default edgeR priors
+logFC_edgeR_mothur_df <- get_tidy_coefs(titration_comp_mothur_df)
 
-logFC_edgeR_mothur_coefs_df <- logFC_edgeR_mothur_df %>% 
-      mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
-
-logFC_edgeR_mothur_coefs_tidy <- logFC_edgeR_mothur_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      mutate(fit_coefs = map(fit_coefs, ~.@.Data[[1]])) %>% 
-      unnest()
+## with no edgeR priors
+logFC_edgeR_mothur_0_prior_df <- get_tidy_coefs(titration_comp_mothur_df,
+                                               prior.count = 0)
 ```
 
 #### QIIME
 ```{r message = FALSE}
-logFC_edgeR_qiime_df <- titration_comp_qiime_df %>% 
-      mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest, prior.count = 0)) 
+## with default edgeR priors
+logFC_edgeR_qiime_df <- get_tidy_coefs(titration_comp_qiime_df)
 
-logFC_edgeR_qiime_coefs_df <- logFC_edgeR_qiime_df %>% 
-      mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
-
-logFC_edgeR_qiime_coefs_tidy <- logFC_edgeR_qiime_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      mutate(fit_coefs = map(fit_coefs, ~.@.Data[[1]])) %>% 
-      unnest()
+## with no edgeR priors
+logFC_edgeR_qiime_0_prior_df <- get_tidy_coefs(titration_comp_qiime_df,
+                                               prior.count = 0)
 ```
 
 #### Unclustered
 ```{r message = FALSE}
-logFC_edgeR_unclustered_df <- titration_comp_unclustered_df %>% 
-      mutate(fit = map(mrexp_sub, mrexp_to_edgeR, group = "t_fctr"),
-             fit = map(fit, exactTest, prior.count = 0)) 
+## with default edgeR priors
+logFC_edgeR_unclustered_df <- get_tidy_coefs(titration_comp_unclustered_df)
 
-logFC_edgeR_unclustered_coefs_df <- logFC_edgeR_unclustered_df %>% 
-      mutate(fit_coefs = map(fit, topTags, n = Inf, adjust.method = "BH")) 
-
-logFC_edgeR_unclustered_coefs_tidy <- logFC_edgeR_unclustered_coefs_df %>% 
-      select(biosample_id, T1, T2, fit_coefs) %>% 
-      mutate(fit_coefs = map(fit_coefs, ~.@.Data[[1]])) %>% 
-      unnest()
+## with no edgeR priors
+logFC_edgeR_unclustered_0_prior_df <- get_tidy_coefs(titration_comp_unclustered_df,
+                                               prior.count = 0)
 ```
 
 
@@ -336,7 +225,7 @@ logFC_edgeR_unclustered_coefs_tidy <- logFC_edgeR_unclustered_coefs_df %>%
 * Precomputated negative binomial values 
 * Calculate log fold-change estimates
 ```{r}
-nb_counts <- readRDS("data/nb_counts_titrations.RDS")
+nb_counts <- readRDS(here("data","nb_counts_titrations.RDS"))
 ## data frames with relative abundance estimates for T1 and T2 - values will be used to calculate log fold-changes
 T1_nb_counts <- nb_counts %>% mutate(T1 = t_fctr, T1_nb = nb_prop) %>% 
       select(-t_fctr, -nb_prop)
@@ -355,18 +244,19 @@ The logFC estimate is NaN when both T1 and T2 are 0, -Inf when T2 is 0 and Inf w
 ## Save logFC tables 
 Combine tables for the different pipelines into individual data frames for each differential abundance methods and save as RDS files.  
 ```{r}
-list(dada2 = logFC_MgSeq_dada2_coefs_tidy,
-     mothur = logFC_MgSeq_mothur_coefs_tidy,
-     qiime = logFC_MgSeq_qiime_coefs_tidy,
-     unclustered = logFC_MgSeq_unclustered_coefs_tidy) %>% 
-      bind_rows(.id = "pipe") %>% saveRDS("data/logFC_MgSeq_df.rds") 
+list(dada2 = logFC_edgeR_dada2_df,
+     mothur = logFC_edgeR_mothur_df,
+     qiime = logFC_edgeR_qiime_df,
+     unclustered = logFC_edgeR_unclustered_df) %>%
+      bind_rows(.id = "pipe") %>% 
+  saveRDS(here("data","logFC_edgeR_df.rds"))
 
-list(dada2 = logFC_edgeR_dada2_coefs_tidy,
-     mothur = logFC_edgeR_mothur_coefs_tidy,
-     qiime = logFC_edgeR_qiime_coefs_tidy,
-     unclustered = logFC_edgeR_unclustered_coefs_tidy) %>%
-      bind_rows(.id = "pipe") %>% saveRDS("data/logFC_edgeR_df.rds")
+list(dada2 = logFC_edgeR_dada2_0_prior_df,
+     mothur = logFC_edgeR_mothur_0_prior_df,
+     qiime = logFC_edgeR_qiime_0_prior_df,
+     unclustered = logFC_edgeR_unclustered_0_prior_df) %>%
+      bind_rows(.id = "pipe") %>% 
+  saveRDS(here("data","logFC_edgeR_0_prior_df.rds"))
 
-saveRDS(logFC_nb, "data/logFC_nb_df.rds")
+saveRDS(logFC_nb, here("data","logFC_nb_df.rds"))
 ```
-
