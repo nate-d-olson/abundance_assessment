@@ -1,0 +1,267 @@
+---
+title: "Fix SRA Run Table"
+author: "Nate Olson"
+date: "10/4/2019"
+output: html_document
+---
+
+```{r}
+library(here)
+library(tidyverse)
+```
+
+# Objective 
+Fix metadata in 16S rRNA mixture study SRA submission metadata table to account for sample mix-up. 
+
+# Approach
+Use Bioproject SRA table `https://www.ncbi.nlm.nih.gov/Traces/study/?query_key=1&WebEnv=NCID_1_15171883_130.14.22.33_5555_1584366702_1880590830_0MetA0_S_HStore&o=acc_s%3Aa` to get current sample metadata.
+
+
+# Input Files
+
+```{r}
+## SRA table downloaded from run selector table 3/16 10AM
+sra_tbl <- read_csv(here("data", "sra_submission_fix",
+                         "SraRunTable_20200316.txt"))
+
+
+## Not sure where this is file is from 
+old_sra_tbl <- read_tsv(here("docs","SraRunTableAbundanceAssessment.txt"))
+
+## SRA submission portal metadata table downloaded 3/16 10AM
+sra_submission_tbl <- read_tsv(here("data", "sra_submission_fix", 
+                                    "metadata-4273012-processed-ok.tsv"))
+
+## Biosample table downloaded from submission portal
+biosample_submission_tbl <- read_tsv(here("data", "sra_submission_fix", 
+                                    "biosample_submission_portal_table_20200316.tsv"))
+    
+## Abundance assessment manuscript supplemental metadata table
+supp_tbl <- read_tsv(here("data", "sra_submission_fix",
+                          "40168_2020_812_MOESM3_ESM.tsv")) 
+```
+
+# Metadata tables
+```{r}
+glimpse(sra_tbl)
+```
+
+```{r}
+glimpse(old_sra_tbl)
+```
+
+```{r}
+glimpse(biosample_submission_tbl)
+```
+
+```{r}
+glimpse(sra_submission_tbl)
+```
+
+```{r}
+glimpse(supp_tbl)
+```
+
+# Getting Corrected Metadata table 
+Making sure the table is corrected for updating submission
+```{r}
+check_samplesheet <- function(sample_df, fix = TRUE){
+    ## Add columns with correct biosample (b_check) and titration (t_check)
+    t20_pos <- paste0("A", c(1, 2, 3, 4, 5, 7, 8, 9, 10, 11))
+    t0_pos <- paste0(rep(c("B", "C", "E", "F", "G"), each = 2), 
+                     rep(c(6, 12), 5))
+    ## Setting titration factor as character to prevent comparison errors
+    sample_df <- sample_df %>% 
+        mutate(t_fctr = as.character(t_fctr),
+               biosample_id = as.character(biosample_id))
+    
+    sam_check_df <- sample_df %>%
+        mutate(t_fctr = as.character(t_fctr),
+            t_check = case_when(pos %in% t20_pos ~ "20",
+                                pos %in% t0_pos ~ "0",
+                                TRUE ~ t_fctr
+            ),
+            b_check = case_when(
+                pos %in% c("B6", "B12") ~ "E01JH0004",
+                pos %in% c("C6", "C12") ~ "E01JH0011",
+                pos %in% c("E6", "E12") ~ "E01JH0016",
+                pos %in% c("F6", "F12") ~ "E01JH0017",
+                pos %in% c("G6", "G12") ~ "E01JH0038",
+                TRUE ~ biosample_id
+            )
+        )
+    if (all(sam_check_df$t_fctr == sam_check_df$t_check,na.rm = TRUE) |
+        all(sam_check_df$biosample_id == sam_check_df$b_check, na.rm = TRUE)) {
+        if (fix) {
+            msg <- str_c(
+                "Titration or biosample metadata is not corrected. ",
+                "Returning data frame with corrected metadata"
+            )
+            message(msg)
+            
+            corrected_sample_df <- sam_check_df %>%
+                mutate(t_fctr = t_check,
+                       biosample_id = b_check) %>%
+                select(-t_check, -b_check)
+            
+            return(corrected_sample_df)
+        } else {
+            message(str_c(
+                "Titration or biosample metadata is not correct ",
+                "and has not been corrected. Returning input data frame."
+            ))
+            return(sample_df)
+        }
+    }
+    
+    message(str_c("Titration and biosample metadata is correct", 
+            ", returning input data frame"))
+    return(sample_df)
+}
+```
+
+```{r}
+sample_sheet <- read_tsv(here("data","mgtstMetadata.tsv")) %>% 
+    check_samplesheet()
+```
+
+```{r}
+sample_sheet
+```
+
+```{r}
+name_fix <- sample_sheet %>% 
+    mutate(seq_lab_uc = toupper(seq_lab),
+           seq_run = as.character(seq_run)) %>% 
+    rename(PCR_plate = pcr_16S_plate, PCR_well = pos, titration = t_fctr,
+           new_host_subject_id = biosample_id) %>%
+    unite(new_Sample_Name, new_host_subject_id,
+                                   titration,
+                                   PCR_plate,
+                                   PCR_well, sep = "_", remove = FALSE) %>% 
+    unite("new_Library_Name", new_Sample_Name, seq_lab_uc, seq_run, 
+          sep = "_",remove = FALSE) %>% 
+    select(PCR_plate, PCR_well, new_Library_Name, new_Sample_Name, 
+           new_host_subject_id, seq_lab, seq_run, titration)
+```
+
+```{r}
+glimpse(name_fix)
+```
+
+# Applying changes to SRA metadata table
+
+Subsetting table to only include relevant columns - thoes for use in joining with `name_fix` and columns to update.
+```{r}
+sra_join_tbl <- sra_tbl %>% 
+    rename(seq_lab = `seq_lab (run)`,
+           seq_run = `seq_run (run)`) %>% 
+    select(Run, BioProject, BioSample, Experiment,
+           `Library Name`, PCR_plate, PCR_well, seq_lab, seq_run)
+```
+
+```{r}
+glimpse(sra_join_tbl)
+```
+
+Joining on PCR_plate, PCR_well, seq_lab, and seq_run - these are metadata variables that were unaffected by the mix-up.
+```{r}
+sra_join_fix <- name_fix %>% 
+    mutate(seq_run = paste0(seq_lab, seq_run)) %>% 
+    left_join(sra_join_tbl)
+```
+Fully joined table
+```{r}
+nrow(sra_join_fix)
+```
+
+SRA metadata for all rows
+```{r}
+sra_join_fix %>% filter(is.na(Run)) %>% nrow()
+```
+
+
+As the library names include most of the metadata we can filter the table to only include rows where the new and current library names don't match.
+```{r}
+sra_entries_to_change <- sra_join_fix %>% 
+    filter(`Library Name` != new_Library_Name)
+```
+
+```{r}
+sra_entries_to_change %>% 
+    select(`Library Name`, new_Library_Name)
+```
+The differences are only related to the biosample_id and therefore only the following columns in the SRA table require changing.
+`host_subject_id (run)`, `host_subject_id`, `Library Name`, `Sample Name`.
+Will want to verify other columns, specifically thoes related to titration.
+
+```{r}
+sra_update_tbl <- sra_entries_to_change %>% 
+    select(-PCR_plate, -PCR_well, -seq_lab, -seq_run, -titration) %>% 
+    left_join(sra_tbl) %>% 
+    select(new_Library_Name, `Library Name`, new_Sample_Name, `Sample Name`, 
+           new_host_subject_id, host_subject_id, Run, BioProject, 
+           BioSample, Experiment, `SRA Study`)
+```
+
+```{r}
+write_tsv(sra_update_tbl, 
+          here("data", "sra_submission_fix","sra_accession_table_fix.tsv"))
+```
+
+# Updating Submission
+## Biosample 
+- Need to send email to update biosamplehelp@ncbi.nlm.nih.gov
+- Include tables with 
+    - Changes: Biosample accession, new and current title, new and current sample name, and new and current host_subject_id
+    - Clean version: Biosample, new title, new sample name, new host_subject_id 
+
+
+```{r}
+biosample_update_tbl <- sra_update_tbl %>% 
+    rename(accession = BioSample) %>% 
+    left_join(biosample_submission_tbl) %>% 
+    mutate(new_sample_title = str_replace(sample_title, 
+                                          "E01JH00[:digit:][:digit:]", 
+                                          new_host_subject_id)) %>% 
+    select(accession, sample_title, new_sample_title, 
+           sample_name, new_Sample_Name, 
+           host_subject_id, new_host_subject_id) %>% 
+    distinct()
+```
+
+```{r}
+write_tsv(biosample_update_tbl, 
+          here("data", "sra_submission_fix","biosample_accession_table_fix.tsv"))
+```
+
+```{r}
+biosample_update_tbl %>% colnames()
+```
+
+## SRA
+- Can edit metadata in submission portal
+    - For 64 entries: 
+    - Elements to update - Title and and library name
+
+```{r}
+sra_submission_update_tbl <- sra_update_tbl %>% 
+    rename(accession = Run, study = `SRA Study`) %>% 
+    left_join(sra_submission_tbl) %>% 
+    mutate(new_title = str_replace(title, 
+                                          "E01JH00[:digit:][:digit:]", 
+                                          new_host_subject_id)) %>% 
+    rename(new_Biosample.name = new_Sample_Name) %>%
+    select(accession, bioproject_accession, biosample_accession,
+           title, new_title, library_ID, new_Library_Name)
+```
+
+
+```{r}
+sra_submission_update_tbl
+```
+```{r}
+write_tsv(sra_submission_update_tbl, 
+          here("data", "sra_submission_fix","sra_submission_table_fix.tsv"))
+```
+
